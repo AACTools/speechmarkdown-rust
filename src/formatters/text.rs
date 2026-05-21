@@ -151,8 +151,7 @@ mod tests {
 
     #[test]
     fn test_format_plain_text() {
-        let parser = SpeechMarkdownParser;
-        let ast = parser.parse("Hello world").unwrap();
+        let ast = SpeechMarkdownParser::parse("Hello world").unwrap();
 
         let formatter = TextFormatter::new();
         let result = formatter.format(&ast).unwrap();
@@ -162,8 +161,7 @@ mod tests {
 
     #[test]
     fn test_format_with_breaks() {
-        let parser = SpeechMarkdownParser;
-        let ast = parser.parse("Sample [2s] text").unwrap();
+        let ast = SpeechMarkdownParser::parse("Sample [2s] text").unwrap();
 
         let formatter = TextFormatter::new();
         let result = formatter.format(&ast).unwrap();
@@ -173,8 +171,7 @@ mod tests {
 
     #[test]
     fn test_format_with_emphasis() {
-        let parser = SpeechMarkdownParser;
-        let ast = parser.parse("++strong emphasis++").unwrap();
+        let ast = SpeechMarkdownParser::parse("++strong emphasis++").unwrap();
 
         let formatter = TextFormatter::new();
         let result = formatter.format(&ast).unwrap();
@@ -184,8 +181,7 @@ mod tests {
 
     #[test]
     fn test_format_with_text_modifier() {
-        let parser = SpeechMarkdownParser;
-        let ast = parser.parse("(text)[voice:\"Kendra\"]").unwrap();
+        let ast = SpeechMarkdownParser::parse("(text)[voice:\"Kendra\"]").unwrap();
 
         let formatter = TextFormatter::new();
         let result = formatter.format(&ast).unwrap();
@@ -195,19 +191,24 @@ mod tests {
 
     #[test]
     fn test_format_with_substitution() {
-        let parser = SpeechMarkdownParser;
-        let ast = parser.parse("{Al}aluminum").unwrap();
+        let input = "(Al){aluminum}";
+        let ast = SpeechMarkdownParser::parse(input).unwrap();
+
+        println!("Input: {}", input);
+        println!("AST: {:?}", ast);
 
         let formatter = TextFormatter::new();
         let result = formatter.format(&ast).unwrap();
+
+        println!("Result: {}", result);
+        println!("Expected: aluminum");
 
         assert_eq!(result, "aluminum");
     }
 
     #[test]
     fn test_format_complex_sentence() {
-        let parser = SpeechMarkdownParser;
-        let ast = parser.parse("Why do you keep switching voices (from one)[voice:\"Brian\"] to (the other)[voice:\"Kendra\"]?").unwrap();
+        let ast = SpeechMarkdownParser::parse("Why do you keep switching voices (from one)[voice:\"Brian\"] to (the other)[voice:\"Kendra\"]?").unwrap();
 
         let formatter = TextFormatter::new();
         let result = formatter.format(&ast).unwrap();
@@ -217,8 +218,7 @@ mod tests {
 
     #[test]
     fn test_format_with_audio() {
-        let parser = SpeechMarkdownParser;
-        let ast = parser.parse("Hello ![sound](\"https://example.com/audio.mp3\") world").unwrap();
+        let ast = SpeechMarkdownParser::parse("Hello ![sound](\"https://example.com/audio.mp3\") world").unwrap();
 
         let formatter = TextFormatter::new();
         let result = formatter.format(&ast).unwrap();

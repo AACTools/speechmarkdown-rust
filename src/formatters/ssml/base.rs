@@ -158,8 +158,11 @@ impl SsmlFormatterBase {
     }
 
     fn format_break(&self, node: &AstNode) -> Result<String> {
-        // Extract strength from text like [break:medium]
-        let strength = node.text.trim_start_matches("[break:").trim_end_matches(']');
+        // Get strength from attributes or use the text directly
+        let strength = node.attributes.get("strength")
+            .unwrap_or(&node.text)
+            .clone();
+
         Ok(format!("<break strength=\"{}\"/>", strength))
     }
 
@@ -172,9 +175,24 @@ impl SsmlFormatterBase {
         // Text modifiers can have multiple modifiers applied
         let mut tags = Vec::new();
 
-        // Extract modifiers from children
+        // Extract modifiers from children first (if they exist)
         for child in &node.children {
             if let Some(tag_info) = self.modifier_to_tag(child) {
+                tags.push(tag_info);
+            }
+        }
+
+        // Also check attributes directly (for our parser's attribute-based approach)
+        for (key, value) in &node.attributes {
+            if let Some(tag_info) = self.attribute_to_tag(key, value) {
+                tags.push(tag_info);
+            }
+        }
+
+        // If no tags were found, handle as special modifier types
+        if tags.is_empty() {
+            // Check for special keys that should map to say-as or other tags
+            if let Some(tag_info) = self.handle_special_modifiers(node) {
                 tags.push(tag_info);
             }
         }
@@ -193,7 +211,7 @@ impl SsmlFormatterBase {
         if caption.is_empty() {
             Ok(format!("<audio src=\"{}\"/>", src))
         } else {
-            Ok(format!("<audio src=\"{}\"><desc>{}</desc></audio>",
+            Ok(format!("<audio src=\"{}\">\n<desc>{}</desc>\n</audio>",
                 src, self.escape_xml(caption)))
         }
     }
@@ -305,6 +323,107 @@ impl SsmlFormatterBase {
         }
     }
 
+    fn attribute_to_tag(&self, key: &str, value: &str) -> Option<(String, HashMap<String, String>)> {
+        let mut attributes = HashMap::new();
+
+        match key.to_lowercase().as_str() {
+            "address" => {
+                return Some(("say-as".to_string(), {
+                    let mut attrs = HashMap::new();
+                    attrs.insert("interpret-as".to_string(), "address".to_string());
+                    attrs
+                }));
+            }
+            "date" => {
+                return Some(("say-as".to_string(), {
+                    let mut attrs = HashMap::new();
+                    attrs.insert("interpret-as".to_string(), "date".to_string());
+                    if !value.is_empty() {
+                        attrs.insert("format".to_string(), value.to_string());
+                    }
+                    attrs
+                }));
+            }
+            "time" => {
+                return Some(("say-as".to_string(), {
+                    let mut attrs = HashMap::new();
+                    attrs.insert("interpret-as".to_string(), "time".to_string());
+                    if !value.is_empty() {
+                        attrs.insert("format".to_string(), value.to_string());
+                    }
+                    attrs
+                }));
+            }
+            "number" | "cardinal" => {
+                return Some(("say-as".to_string(), {
+                    let mut attrs = HashMap::new();
+                    attrs.insert("interpret-as".to_string(), "number".to_string());
+                    attrs
+                }));
+            }
+            "ordinal" => {
+                return Some(("say-as".to_string(), {
+                    let mut attrs = HashMap::new();
+                    attrs.insert("interpret-as".to_string(), "ordinal".to_string());
+                    attrs
+                }));
+            }
+            "characters" | "chars" => {
+                return Some(("say-as".to_string(), {
+                    let mut attrs = HashMap::new();
+                    attrs.insert("interpret-as".to_string(), "characters".to_string());
+                    attrs
+                }));
+            }
+            "ipa" => {
+                // Handle IPA pronunciation: (text)[ipa:"pronunciation"]
+                return Some(("phoneme".to_string(), {
+                    let mut attrs = HashMap::new();
+                    attrs.insert("alphabet".to_string(), "ipa".to_string());
+                    if !value.is_empty() {
+                        attrs.insert("ph".to_string(), value.to_string());
+                    }
+                    attrs
+                }));
+            }
+            "voice" => {
+                if !value.is_empty() {
+                    attributes.insert("name".to_string(), value.to_string());
+                }
+                Some(("voice".to_string(), attributes))
+            }
+            "lang" => {
+                if !value.is_empty() {
+                    attributes.insert("xml:lang".to_string(), value.to_string());
+                }
+                Some(("lang".to_string(), attributes))
+            }
+            "rate" | "pitch" | "volume" => {
+                if !value.is_empty() {
+                    attributes.insert(key.to_string(), value.to_string());
+                }
+                Some(("prosody".to_string(), attributes))
+            }
+            "emphasis" => {
+                if !value.is_empty() {
+                    attributes.insert("level".to_string(), value.to_string());
+                }
+                Some(("emphasis".to_string(), attributes))
+            }
+            _ => None,
+        }
+    }
+
+    fn handle_special_modifiers(&self, node: &AstNode) -> Option<(String, HashMap<String, String>)> {
+        // Handle special cases based on the modifier keys in attributes
+        for key in node.attributes.keys() {
+            if let Some(tag_info) = self.attribute_to_tag(key, "") {
+                return Some(tag_info);
+            }
+        }
+        None
+    }
+
     /// Apply multiple tags to text in the correct order
     fn apply_tags_to_text(&self, text: &str, tags: &[(String, HashMap<String, String>)]) -> Result<String> {
         let mut current_text = text.to_string();
@@ -350,7 +469,8 @@ impl SsmlFormatterBase {
             .replace('<', "&lt;")
             .replace('>', "&gt;")
             .replace('"', "&quot;")
-            .replace('\'', "&apos;")
+        // Note: We don't escape apostrophes as they're generally safe in SSML
+        // and many implementations prefer literal ' over &apos;
     }
 }
 

@@ -25,7 +25,7 @@ impl AmazonAlexaSsmlFormatter {
         if caption.is_empty() {
             Ok(format!("<audio src=\"{}\"/>", src))
         } else {
-            Ok(format!("<audio src=\"{}\"><desc>{}</desc></audio>",
+            Ok(format!("<audio src=\"{}\">\n<desc>{}</desc>\n</audio>",
                 src, self.base.escape_xml(caption)))
         }
     }
@@ -82,22 +82,19 @@ impl Formatter for AmazonAlexaSsmlFormatter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::parser::SpeechMarkdownParser;
 
     #[test]
     fn test_amazon_alexa_basic_parsing() {
-        let parser = SpeechMarkdownParser;
         let input = "Hello world";
-        let result = parser.to_ssml(input, crate::formatters::base::Platform::AmazonAlexa);
+        let result = SpeechMarkdownParser::to_ssml(input, crate::formatters::base::Platform::AmazonAlexa);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_amazon_alexa_with_break() {
-        let parser = SpeechMarkdownParser;
         let input = "Sample [2s] text";
-        let result = parser.to_ssml(input, crate::formatters::base::Platform::AmazonAlexa);
+        let result = SpeechMarkdownParser::to_ssml(input, crate::formatters::base::Platform::AmazonAlexa);
         assert!(result.is_ok());
 
         let ssml = result.unwrap();
@@ -106,9 +103,8 @@ mod tests {
 
     #[test]
     fn test_amazon_alexa_with_emphasis() {
-        let parser = SpeechMarkdownParser;
         let input = "++strong emphasis++";
-        let result = parser.to_ssml(input, crate::formatters::base::Platform::AmazonAlexa);
+        let result = SpeechMarkdownParser::to_ssml(input, crate::formatters::base::Platform::AmazonAlexa);
         assert!(result.is_ok());
 
         let ssml = result.unwrap();

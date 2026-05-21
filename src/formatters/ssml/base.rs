@@ -66,18 +66,10 @@ impl SsmlFormatterBase {
             NodeType::Break => self.format_break(node),
 
             // Emphasis
-            NodeType::ShortEmphasisModerate => {
-                self.format_emphasis(node, "moderate")
-            }
-            NodeType::ShortEmphasisStrong => {
-                self.format_emphasis(node, "strong")
-            }
-            NodeType::ShortEmphasisNone => {
-                self.format_emphasis(node, "reduced")
-            }
-            NodeType::ShortEmphasisReduced => {
-                self.format_emphasis(node, "reduced")
-            }
+            NodeType::ShortEmphasisModerate => self.format_emphasis(node, "moderate"),
+            NodeType::ShortEmphasisStrong => self.format_emphasis(node, "strong"),
+            NodeType::ShortEmphasisNone => self.format_emphasis(node, "reduced"),
+            NodeType::ShortEmphasisReduced => self.format_emphasis(node, "reduced"),
 
             // Text modifiers
             NodeType::TextModifier => self.format_text_modifier(node),
@@ -173,23 +165,68 @@ impl SsmlFormatterBase {
     }
 
     fn format_section(&self, node: &AstNode) -> Result<String> {
-        // Sections apply modifiers to all content within
-        self.format_children_with_modifiers(node, &node.children)
+        let mut tags: Vec<(String, HashMap<String, String>)> = Vec::new();
+        for (key, value) in &node.attributes {
+            if let Some(tag_info) = self.attribute_to_tag(key, value) {
+                let tag_name = tag_info.0.clone();
+                if tag_name == "prosody" {
+                    if let Some(existing) = tags.iter_mut().find(|(name, _)| name == "prosody") {
+                        for (k, v) in tag_info.1 {
+                            existing.1.insert(k, v);
+                        }
+                        continue;
+                    }
+                }
+                tags.push(tag_info);
+            }
+        }
+
+        if tags.is_empty() {
+            return Ok(String::new());
+        }
+
+        let mut result = String::new();
+        for (tag_name, attrs) in &tags {
+            let attr_string = attrs
+                .iter()
+                .map(|(k, v)| format!("{}=\"{}\"", k, self.escape_xml(v)))
+                .collect::<Vec<_>>()
+                .join(" ");
+            if attr_string.is_empty() {
+                result.push_str(&format!("<{}>\n", tag_name));
+            } else {
+                result.push_str(&format!("<{} {}>\n", tag_name, attr_string));
+            }
+        }
+        Ok(result)
     }
 
     fn format_section_close(&self, node: &AstNode) -> Result<String> {
-        // Default implementation - override in platform-specific formatters
-        match node.node_type {
-            NodeType::Section => {
-                // Check if this is a style/emotion section
-                if node.attributes.contains_key("style") || node.attributes.contains_key("emotion") {
-                    Ok("</mstts:express-as>".to_string())
-                } else {
-                    Ok(String::new())
+        let mut tags: Vec<(String, HashMap<String, String>)> = Vec::new();
+        for (key, value) in &node.attributes {
+            if let Some(tag_info) = self.attribute_to_tag(key, value) {
+                let tag_name = tag_info.0.clone();
+                if tag_name == "prosody" {
+                    if let Some(existing) = tags.iter_mut().find(|(name, _)| name == "prosody") {
+                        for (k, v) in tag_info.1 {
+                            existing.1.insert(k, v);
+                        }
+                        continue;
+                    }
                 }
+                tags.push(tag_info);
             }
-            _ => Ok(String::new())
         }
+
+        if tags.is_empty() {
+            return Ok(String::new());
+        }
+
+        let mut result = String::new();
+        for (tag_name, _) in tags.iter().rev() {
+            result.push_str(&format!("</{}>\n", tag_name));
+        }
+        Ok(result)
     }
 
     fn format_short_break(&self, node: &AstNode) -> Result<String> {
@@ -200,7 +237,9 @@ impl SsmlFormatterBase {
 
     fn format_break(&self, node: &AstNode) -> Result<String> {
         // Get strength from attributes or use the text directly
-        let strength = node.attributes.get("strength")
+        let strength = node
+            .attributes
+            .get("strength")
             .unwrap_or(&node.text)
             .clone();
 
@@ -208,52 +247,51 @@ impl SsmlFormatterBase {
     }
 
     fn format_emphasis(&self, node: &AstNode, level: &str) -> Result<String> {
-        Ok(format!("<emphasis level=\"{}\">{}</emphasis>",
-            level, self.escape_xml(&node.text)))
+        Ok(format!(
+            "<emphasis level=\"{}\">{}</emphasis>",
+            level,
+            self.escape_xml(&node.text)
+        ))
     }
 
     fn format_text_modifier(&self, node: &AstNode) -> Result<String> {
-        // Text modifiers can have multiple modifiers applied
-        let mut tags = Vec::new();
+        let mut tags: Vec<(String, HashMap<String, String>)> = Vec::new();
 
-        // Extract modifiers from children first (if they exist)
-        for child in &node.children {
-            if let Some(tag_info) = self.modifier_to_tag(child) {
-                tags.push(tag_info);
-            }
-        }
-
-        // Also check attributes directly (for our parser's attribute-based approach)
         for (key, value) in &node.attributes {
             if let Some(tag_info) = self.attribute_to_tag(key, value) {
+                let tag_name = tag_info.0.clone();
+                if tag_name == "prosody" {
+                    if let Some(existing) = tags.iter_mut().find(|(name, _)| name == "prosody") {
+                        for (k, v) in tag_info.1 {
+                            existing.1.insert(k, v);
+                        }
+                        continue;
+                    }
+                }
                 tags.push(tag_info);
             }
         }
 
-        // If no tags were found, handle as special modifier types
         if tags.is_empty() {
-            // Check for special keys that should map to say-as or other tags
-            if let Some(tag_info) = self.handle_special_modifiers(node) {
-                tags.push(tag_info);
-            }
+            return Ok(self.escape_xml(&node.text));
         }
 
-        // Apply tags to the text content
         self.apply_tags_to_text(&node.text, &tags)
     }
 
     fn format_audio(&self, node: &AstNode) -> Result<String> {
-        let src = node.attributes.get("src")
-            .unwrap_or(&String::new())
-            .clone();
+        let src = node.attributes.get("src").unwrap_or(&String::new()).clone();
 
         let caption = &node.text;
 
         if caption.is_empty() {
             Ok(format!("<audio src=\"{}\"/>", src))
         } else {
-            Ok(format!("<audio src=\"{}\">\n<desc>{}</desc>\n</audio>",
-                src, self.escape_xml(caption)))
+            Ok(format!(
+                "<audio src=\"{}\">\n<desc>{}</desc>\n</audio>",
+                src,
+                self.escape_xml(caption)
+            ))
         }
     }
 
@@ -262,37 +300,47 @@ impl SsmlFormatterBase {
     }
 
     fn format_ipa(&self, node: &AstNode) -> Result<String> {
-        let phoneme = node.attributes.get("phoneme")
+        let phoneme = node
+            .attributes
+            .get("phoneme")
             .unwrap_or(&String::new())
             .clone();
 
         if phoneme.is_empty() {
             Ok(self.escape_xml(&node.text))
         } else {
-            Ok(format!("<phoneme alphabet=\"ipa\" ph=\"{}\">{}</phoneme>",
-                self.escape_xml(&phoneme), self.escape_xml(&node.text)))
+            Ok(format!(
+                "<phoneme alphabet=\"ipa\" ph=\"{}\">{}</phoneme>",
+                self.escape_xml(&phoneme),
+                self.escape_xml(&node.text)
+            ))
         }
     }
 
     fn format_bare_ipa(&self, node: &AstNode) -> Result<String> {
-        let phoneme = node.attributes.get("ph")
-            .unwrap_or(&node.text)
-            .clone();
+        let phoneme = node.attributes.get("ph").unwrap_or(&node.text).clone();
 
-        Ok(format!("<phoneme alphabet=\"ipa\" ph=\"{}\">ipa</phoneme>",
-            self.escape_xml(&phoneme)))
+        Ok(format!(
+            "<phoneme alphabet=\"ipa\" ph=\"{}\">ipa</phoneme>",
+            self.escape_xml(&phoneme)
+        ))
     }
 
     fn format_short_sub(&self, node: &AstNode) -> Result<String> {
-        let alias = node.attributes.get("alias")
+        let alias = node
+            .attributes
+            .get("alias")
             .unwrap_or(&String::new())
             .clone();
 
         if alias.is_empty() {
             Ok(self.escape_xml(&node.text))
         } else {
-            Ok(format!("<sub alias=\"{}\">{}</sub>",
-                self.escape_xml(&alias), self.escape_xml(&node.text)))
+            Ok(format!(
+                "<sub alias=\"{}\">{}</sub>",
+                self.escape_xml(&alias),
+                self.escape_xml(&node.text)
+            ))
         }
     }
 
@@ -318,7 +366,11 @@ impl SsmlFormatterBase {
         self.extract_tag_attributes(node, tag_name)
     }
 
-    fn extract_tag_attributes(&self, node: &AstNode, tag_name: &str) -> Option<(String, HashMap<String, String>)> {
+    fn extract_tag_attributes(
+        &self,
+        node: &AstNode,
+        tag_name: &str,
+    ) -> Option<(String, HashMap<String, String>)> {
         let mut attributes = HashMap::new();
 
         // Extract attribute value if present
@@ -368,68 +420,88 @@ impl SsmlFormatterBase {
         }
     }
 
-    fn attribute_to_tag(&self, key: &str, value: &str) -> Option<(String, HashMap<String, String>)> {
+    fn attribute_to_tag(
+        &self,
+        key: &str,
+        value: &str,
+    ) -> Option<(String, HashMap<String, String>)> {
         let mut attributes = HashMap::new();
 
         match key.to_lowercase().as_str() {
-            "address" => {
-                return Some(("say-as".to_string(), {
-                    let mut attrs = HashMap::new();
-                    attrs.insert("interpret-as".to_string(), "address".to_string());
-                    attrs
-                }));
-            }
-            "date" => {
-                return Some(("say-as".to_string(), {
-                    let mut attrs = HashMap::new();
-                    attrs.insert("interpret-as".to_string(), "date".to_string());
-                    if !value.is_empty() {
-                        attrs.insert("format".to_string(), value.to_string());
-                    }
-                    attrs
-                }));
-            }
-            "time" => {
-                return Some(("say-as".to_string(), {
-                    let mut attrs = HashMap::new();
-                    attrs.insert("interpret-as".to_string(), "time".to_string());
-                    if !value.is_empty() {
-                        attrs.insert("format".to_string(), value.to_string());
-                    }
-                    attrs
-                }));
-            }
-            "number" | "cardinal" => {
-                return Some(("say-as".to_string(), {
-                    let mut attrs = HashMap::new();
-                    attrs.insert("interpret-as".to_string(), "number".to_string());
-                    attrs
-                }));
-            }
-            "ordinal" => {
-                return Some(("say-as".to_string(), {
-                    let mut attrs = HashMap::new();
-                    attrs.insert("interpret-as".to_string(), "ordinal".to_string());
-                    attrs
-                }));
-            }
-            "characters" | "chars" => {
-                return Some(("say-as".to_string(), {
-                    let mut attrs = HashMap::new();
-                    attrs.insert("interpret-as".to_string(), "characters".to_string());
-                    attrs
-                }));
-            }
-            "ipa" => {
-                // Handle IPA pronunciation: (text)[ipa:"pronunciation"]
-                return Some(("phoneme".to_string(), {
-                    let mut attrs = HashMap::new();
-                    attrs.insert("alphabet".to_string(), "ipa".to_string());
-                    if !value.is_empty() {
-                        attrs.insert("ph".to_string(), value.to_string());
-                    }
-                    attrs
-                }));
+            "address" => Some(("say-as".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("interpret-as".to_string(), "address".to_string());
+                attrs
+            })),
+            "date" => Some(("say-as".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("interpret-as".to_string(), "date".to_string());
+                if !value.is_empty() {
+                    attrs.insert("format".to_string(), value.to_string());
+                }
+                attrs
+            })),
+            "time" => Some(("say-as".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("interpret-as".to_string(), "time".to_string());
+                if !value.is_empty() {
+                    attrs.insert("format".to_string(), value.to_string());
+                }
+                attrs
+            })),
+            "number" | "cardinal" => Some(("say-as".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("interpret-as".to_string(), "number".to_string());
+                attrs
+            })),
+            "ordinal" => Some(("say-as".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("interpret-as".to_string(), "ordinal".to_string());
+                attrs
+            })),
+            "characters" | "chars" | "digits" | "drc" => Some(("say-as".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("interpret-as".to_string(), "characters".to_string());
+                attrs
+            })),
+            "fraction" => Some(("say-as".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("interpret-as".to_string(), "fraction".to_string());
+                attrs
+            })),
+            "unit" => Some(("say-as".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("interpret-as".to_string(), "unit".to_string());
+                attrs
+            })),
+            "interjection" => Some(("say-as".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("interpret-as".to_string(), "interjection".to_string());
+                attrs
+            })),
+            "expletive" | "bleep" => Some(("say-as".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("interpret-as".to_string(), "expletive".to_string());
+                attrs
+            })),
+            "telephone" | "phone" => Some(("say-as".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("interpret-as".to_string(), "telephone".to_string());
+                attrs
+            })),
+            "ipa" => Some(("phoneme".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("alphabet".to_string(), "ipa".to_string());
+                if !value.is_empty() {
+                    attrs.insert("ph".to_string(), value.to_string());
+                }
+                attrs
+            })),
+            "sub" => {
+                if !value.is_empty() {
+                    attributes.insert("alias".to_string(), value.to_string());
+                }
+                Some(("sub".to_string(), attributes))
             }
             "voice" => {
                 if !value.is_empty() {
@@ -443,23 +515,44 @@ impl SsmlFormatterBase {
                 }
                 Some(("lang".to_string(), attributes))
             }
-            "rate" | "pitch" | "volume" => {
-                if !value.is_empty() {
-                    attributes.insert(key.to_string(), value.to_string());
-                }
+            "rate" => {
+                let rate_val = if value.is_empty() { "medium" } else { value };
+                attributes.insert("rate".to_string(), rate_val.to_string());
+                Some(("prosody".to_string(), attributes))
+            }
+            "pitch" => {
+                let pitch_val = if value.is_empty() { "medium" } else { value };
+                attributes.insert("pitch".to_string(), pitch_val.to_string());
+                Some(("prosody".to_string(), attributes))
+            }
+            "volume" | "vol" => {
+                let vol_val = if value.is_empty() { "medium" } else { value };
+                attributes.insert("volume".to_string(), vol_val.to_string());
+                Some(("prosody".to_string(), attributes))
+            }
+            "timbre" => {
+                let timbre_val = if value.is_empty() { "medium" } else { value };
+                attributes.insert("pitch".to_string(), timbre_val.to_string());
                 Some(("prosody".to_string(), attributes))
             }
             "emphasis" => {
-                if !value.is_empty() {
-                    attributes.insert("level".to_string(), value.to_string());
-                }
+                let level = if value.is_empty() { "moderate" } else { value };
+                attributes.insert("level".to_string(), level.to_string());
                 Some(("emphasis".to_string(), attributes))
             }
+            "whisper" => Some(("amazon:effect".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("name".to_string(), "whispered".to_string());
+                attrs
+            })),
             _ => None,
         }
     }
 
-    fn handle_special_modifiers(&self, node: &AstNode) -> Option<(String, HashMap<String, String>)> {
+    fn handle_special_modifiers(
+        &self,
+        node: &AstNode,
+    ) -> Option<(String, HashMap<String, String>)> {
         // Handle special cases based on the modifier keys in attributes
         for key in node.attributes.keys() {
             if let Some(tag_info) = self.attribute_to_tag(key, "") {
@@ -470,20 +563,26 @@ impl SsmlFormatterBase {
     }
 
     /// Apply multiple tags to text in the correct order
-    fn apply_tags_to_text(&self, text: &str, tags: &[(String, HashMap<String, String>)]) -> Result<String> {
+    fn apply_tags_to_text(
+        &self,
+        text: &str,
+        tags: &[(String, HashMap<String, String>)],
+    ) -> Result<String> {
         let mut current_text = text.to_string();
 
         // Sort tags according to the defined order
         let mut sorted_tags = tags.to_vec();
         sorted_tags.sort_by_key(|(tag_name, _)| {
-            self.tag_sort_order.iter()
+            self.tag_sort_order
+                .iter()
                 .position(|t| t == tag_name)
                 .unwrap_or(usize::MAX)
         });
 
         // Apply tags from inside to outside (reverse order)
         for (tag_name, attributes) in sorted_tags.iter().rev() {
-            let attr_string = attributes.iter()
+            let attr_string = attributes
+                .iter()
                 .map(|(k, v)| format!("{}=\"{}\"", k, self.escape_xml(v)))
                 .collect::<Vec<_>>()
                 .join(" ");
@@ -491,14 +590,21 @@ impl SsmlFormatterBase {
             if attr_string.is_empty() {
                 current_text = format!("<{}>{}</{}>", tag_name, current_text, tag_name);
             } else {
-                current_text = format!("<{} {}>{}</{}>", tag_name, attr_string, current_text, tag_name);
+                current_text = format!(
+                    "<{} {}>{}</{}>",
+                    tag_name, attr_string, current_text, tag_name
+                );
             }
         }
 
         Ok(current_text)
     }
 
-    fn format_children_with_modifiers(&self, _node: &AstNode, children: &[AstNode]) -> Result<String> {
+    fn format_children_with_modifiers(
+        &self,
+        _node: &AstNode,
+        children: &[AstNode],
+    ) -> Result<String> {
         let mut content = String::new();
 
         for child in children {

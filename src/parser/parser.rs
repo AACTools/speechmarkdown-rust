@@ -1,7 +1,7 @@
 use crate::ast::{AstNode, NodeType};
 use crate::error::Result;
-use crate::formatters::{TextFormatter, create_formatter, Formatter};
 use crate::formatters::base::{FormatterOptions, Platform};
+use crate::formatters::{create_formatter, Formatter, TextFormatter};
 
 pub struct SpeechMarkdownParser;
 
@@ -35,134 +35,121 @@ impl SpeechMarkdownParser {
         let mut current_text = String::new();
         let mut chars = input.chars().peekable();
 
+        let flush_text = |doc: &mut AstNode, text: &mut String| {
+            if !text.is_empty() {
+                let node = AstNode::text(text.clone());
+                text.clear();
+                doc.children.push(node);
+            }
+        };
+
         while let Some(c) = chars.next() {
             match c {
-                '#' => {
-                    // Check for section notation: #[style] or #[key:value]
-                    if chars.peek() == Some(&'[') {
-                        if !current_text.is_empty() {
-                            document = document.add_child(AstNode::text(current_text.clone()));
-                            current_text.clear();
-                        }
-
-                        chars.next(); // consume '['
-                        let mut section_content = String::new();
-                        let mut found_bracket = false;
-
-                        while let Some(&next_c) = chars.peek() {
-                            chars.next();
-                            if next_c == ']' {
-                                found_bracket = true;
-                                break;
+                '#' if chars.peek() == Some(&'[') => {
+                    flush_text(&mut document, &mut current_text);
+                    chars.next();
+                    let (section_content, found) = Self::read_until(&mut chars, ']');
+                    if found {
+                        let mut node = AstNode::new(NodeType::Section, section_content.clone());
+                        for modifier in section_content.split(';') {
+                            if let Some((key, value)) = modifier.split_once(':') {
+                                node = node.with_attribute(
+                                    key.trim(),
+                                    value.trim().trim_matches('"').trim_matches('\''),
+                                );
+                            } else {
+                                node = node.with_attribute("style", modifier.trim());
                             }
-                            section_content.push(next_c);
                         }
-
-                        if found_bracket {
-                            let mut node = AstNode::new(NodeType::Section, section_content.clone());
-
-                            // Parse section content as modifiers
-                            for modifier in section_content.split(';') {
-                                if let Some((key, value)) = modifier.split_once(':') {
-                                    node = node.with_attribute(key.trim(), value.trim().trim_matches('"').trim_matches('\''));
-                                } else {
-                                    // If no value, treat it as a style name
-                                    node = node.with_attribute("style", modifier.trim());
-                                }
-                            }
-                            document = document.add_child(node);
-                        } else {
-                            current_text.push('#');
-                            current_text.push('[');
-                            current_text.push_str(&section_content);
-                        }
+                        document = document.add_child(node);
                     } else {
                         current_text.push('#');
+                        current_text.push('[');
+                        current_text.push_str(&section_content);
                     }
                 }
                 '[' => {
-                    // Check for break notation
-                    if !current_text.is_empty() {
-                        document = document.add_child(AstNode::text(current_text.clone()));
-                        current_text.clear();
-                    }
-
-                    // Try to parse break: [time] or [break:...] or [break:"..."]
-                    let mut break_content = String::new();
-                    let mut found_bracket = false;
-
-                    while let Some(&next_c) = chars.peek() {
-                        chars.next();
-                        if next_c == ']' {
-                            found_bracket = true;
-                            break;
-                        }
-                        break_content.push(next_c);
-                    }
-
-                    if found_bracket {
-                        // Check if this is a break directive: [break:...]
-                        if break_content.starts_with("break:") {
-                            let break_value = break_content.trim_start_matches("break:");
-
-                            // Remove quotes if present
-                            let break_value = break_value.trim_matches('"').trim_matches('\'');
-
-                            // Check if it's a time value or strength value
+                    flush_text(&mut document, &mut current_text);
+                    let (bracket_content, found) = Self::read_until(&mut chars, ']');
+                    if found {
+                        if bracket_content.starts_with("break:") {
+                            let break_value = bracket_content[6..]
+                                .trim()
+                                .trim_matches('"')
+                                .trim_matches('\'');
                             if Self::is_time_break(break_value) {
-                                // Time-based break: [break:"3s"]
-                                document = document.add_child(AstNode::new(NodeType::ShortBreak, format!("[{}]", break_value)));
+                                document = document.add_child(AstNode::new(
+                                    NodeType::ShortBreak,
+                                    format!("[{}]", break_value),
+                                ));
                             } else {
-                                // Strength-based break: [break:"strong"]
-                                let mut node = AstNode::new(NodeType::Break, break_value.to_string());
+                                let mut node =
+                                    AstNode::new(NodeType::Break, break_value.to_string());
                                 node = node.with_attribute("strength", break_value);
                                 document = document.add_child(node);
                             }
-                        } else if Self::is_time_break(&break_content) {
-                            // Simple time break: [3s]
-                            document = document.add_child(AstNode::new(NodeType::ShortBreak, format!("[{}]", break_content)));
+                        } else if bracket_content.starts_with("mark:") {
+                            let mark_value = bracket_content[5..]
+                                .trim()
+                                .trim_matches('"')
+                                .trim_matches('\'');
+                            document = document
+                                .add_child(AstNode::new(NodeType::Mark, mark_value.to_string()));
+                        } else if Self::is_time_break(&bracket_content) {
+                            document = document.add_child(AstNode::new(
+                                NodeType::ShortBreak,
+                                format!("[{}]", bracket_content),
+                            ));
                         } else {
                             current_text.push('[');
-                            current_text.push_str(&break_content);
+                            current_text.push_str(&bracket_content);
                             current_text.push(']');
                         }
                     } else {
                         current_text.push('[');
-                        current_text.push_str(&break_content);
+                        current_text.push_str(&bracket_content);
+                    }
+                }
+                '~' => {
+                    flush_text(&mut document, &mut current_text);
+                    let mut emphasized_text = String::new();
+                    let mut found_end = false;
+                    while let Some(&next_c) = chars.peek() {
+                        chars.next();
+                        if next_c == '~' {
+                            found_end = true;
+                            break;
+                        }
+                        emphasized_text.push(next_c);
+                    }
+                    if found_end && !emphasized_text.is_empty() {
+                        document = document
+                            .add_child(AstNode::new(NodeType::ShortEmphasisNone, emphasized_text));
+                    } else {
+                        current_text.push('~');
+                        current_text.push_str(&emphasized_text);
                     }
                 }
                 '+' => {
-                    // Check for emphasis: +text+ or ++text++
-                    if !current_text.is_empty() {
-                        document = document.add_child(AstNode::text(current_text.clone()));
-                        current_text.clear();
-                    }
-
-                    // Count consecutive + signs to determine emphasis type
+                    flush_text(&mut document, &mut current_text);
                     let mut plus_count = 1;
                     while chars.peek() == Some(&'+') {
                         chars.next();
                         plus_count += 1;
                     }
-
-                    // Parse emphasized text
                     let mut emphasized_text = String::new();
                     let mut found_end = false;
-
                     while let Some(&next_c) = chars.peek() {
                         if next_c == '+' {
-                            // Check if we have the right number of closing + signs
                             let mut closing_pluses = 0;
                             while chars.peek() == Some(&'+') {
                                 chars.next();
                                 closing_pluses += 1;
                             }
-
                             if closing_pluses == plus_count {
                                 found_end = true;
                                 break;
                             } else {
-                                // Not the right number, add the + signs back as text
                                 for _ in 0..closing_pluses {
                                     emphasized_text.push('+');
                                 }
@@ -172,16 +159,14 @@ impl SpeechMarkdownParser {
                             emphasized_text.push(next_c);
                         }
                     }
-
                     if found_end {
-                        let node_type = match plus_count {
-                            2 => NodeType::ShortEmphasisStrong,
-                            1 => NodeType::ShortEmphasisModerate,
-                            _ => NodeType::ShortEmphasisModerate,
+                        let node_type = if plus_count >= 2 {
+                            NodeType::ShortEmphasisStrong
+                        } else {
+                            NodeType::ShortEmphasisModerate
                         };
                         document = document.add_child(AstNode::new(node_type, emphasized_text));
                     } else {
-                        // Add the + signs and text as plain text
                         for _ in 0..plus_count {
                             current_text.push('+');
                         }
@@ -189,15 +174,9 @@ impl SpeechMarkdownParser {
                     }
                 }
                 '(' => {
-                    // Check for text modifier: (text)[key:value] OR substitution: (text){alias}
-                    if !current_text.is_empty() {
-                        document = document.add_child(AstNode::text(current_text.clone()));
-                        current_text.clear();
-                    }
-
+                    flush_text(&mut document, &mut current_text);
                     let mut modifier_content = String::new();
                     let mut found_closing_paren = false;
-
                     while let Some(&next_c) = chars.peek() {
                         chars.next();
                         if next_c == ')' {
@@ -208,57 +187,37 @@ impl SpeechMarkdownParser {
                     }
 
                     if found_closing_paren {
-                        // Check what comes next: [ for text modifier or { for substitution
                         if chars.peek() == Some(&'[') {
-                            // Text modifier: (text)[modifiers]
-                            chars.next(); // consume '['
-
-                            let mut modifiers = String::new();
-                            let mut found_closing_bracket = false;
-
-                            while let Some(&next_c) = chars.peek() {
-                                chars.next();
-                                if next_c == ']' {
-                                    found_closing_bracket = true;
-                                    break;
-                                }
-                                modifiers.push(next_c);
-                            }
-
-                            if found_closing_bracket {
-                                let mut node = AstNode::new(NodeType::TextModifier, modifier_content);
-                                // Parse modifiers
+                            chars.next();
+                            let (modifiers, found_bracket) = Self::read_until(&mut chars, ']');
+                            if found_bracket {
+                                let mut node =
+                                    AstNode::new(NodeType::TextModifier, modifier_content);
                                 for modifier in modifiers.split(';') {
                                     if let Some((key, value)) = modifier.split_once(':') {
-                                        node = node.with_attribute(key.trim(), value.trim().trim_matches('"').trim_matches('\''));
+                                        node = node.with_attribute(
+                                            key.trim(),
+                                            value.trim().trim_matches('"').trim_matches('\''),
+                                        );
                                     } else {
-                                        node = node.with_attribute(modifier.trim(), "");
+                                        let key = modifier.trim();
+                                        if !key.is_empty() {
+                                            node = node.with_attribute(key, "");
+                                        }
                                     }
                                 }
                                 document = document.add_child(node);
                             } else {
                                 current_text.push('(');
                                 current_text.push_str(&modifier_content);
+                                current_text.push(')');
                                 current_text.push('[');
                                 current_text.push_str(&modifiers);
                             }
                         } else if chars.peek() == Some(&'{') {
-                            // Substitution: (text){alias}
-                            chars.next(); // consume '{'
-
-                            let mut alias_text = String::new();
-                            let mut found_closing_brace = false;
-
-                            while let Some(&next_c) = chars.peek() {
-                                chars.next();
-                                if next_c == '}' {
-                                    found_closing_brace = true;
-                                    break;
-                                }
-                                alias_text.push(next_c);
-                            }
-
-                            if found_closing_brace {
+                            chars.next();
+                            let (alias_text, found_brace) = Self::read_until(&mut chars, '}');
+                            if found_brace {
                                 let mut node = AstNode::new(NodeType::ShortSub, modifier_content);
                                 if !alias_text.is_empty() {
                                     node = node.with_attribute("alias", alias_text);
@@ -271,8 +230,30 @@ impl SpeechMarkdownParser {
                                 current_text.push('{');
                                 current_text.push_str(&alias_text);
                             }
+                        } else if chars.peek() == Some(&'/') {
+                            chars.next();
+                            let mut phoneme = String::new();
+                            let mut found_slash = false;
+                            while let Some(&next_c) = chars.peek() {
+                                chars.next();
+                                if next_c == '/' {
+                                    found_slash = true;
+                                    break;
+                                }
+                                phoneme.push(next_c);
+                            }
+                            if found_slash {
+                                let mut node = AstNode::new(NodeType::ShortIpa, modifier_content);
+                                node = node.with_attribute("phoneme", phoneme);
+                                document = document.add_child(node);
+                            } else {
+                                current_text.push('(');
+                                current_text.push_str(&modifier_content);
+                                current_text.push(')');
+                                current_text.push('/');
+                                current_text.push_str(&phoneme);
+                            }
                         } else {
-                            // Just plain text with parentheses
                             current_text.push('(');
                             current_text.push_str(&modifier_content);
                             current_text.push(')');
@@ -283,92 +264,106 @@ impl SpeechMarkdownParser {
                     }
                 }
                 '/' => {
-                    // Check for IPA notation: /phoneme/ or (/text/phoneme/)
-                    if !current_text.is_empty() {
-                        document = document.add_child(AstNode::text(current_text.clone()));
-                        current_text.clear();
-                    }
-
-                    // Try to parse IPA: /phoneme/
+                    flush_text(&mut document, &mut current_text);
                     let mut ipa_content = String::new();
                     let mut found_slash = false;
-                    let mut slash_count = 1;
-
                     while let Some(&next_c) = chars.peek() {
-                        chars.next();
                         if next_c == '/' {
-                            slash_count += 1;
-                            if slash_count == 2 {
-                                found_slash = true;
-                                break;
-                            }
+                            chars.next();
+                            found_slash = true;
+                            break;
                         }
+                        if next_c == ' ' || next_c == '\n' || next_c == '\r' || next_c == '\t' {
+                            break;
+                        }
+                        chars.next();
                         ipa_content.push(next_c);
                     }
-
-                    if found_slash {
-                        // Check if this is a bare IPA (/phoneme/) or part of a larger pattern
-                        // For now, treat it as bare IPA
+                    if found_slash && !ipa_content.is_empty() {
                         let mut node = AstNode::new(NodeType::BareIpa, "ipa".to_string());
                         node = node.with_attribute("alphabet", "ipa");
                         node = node.with_attribute("ph", ipa_content.trim().to_string());
                         document = document.add_child(node);
+                    } else if found_slash {
+                        current_text.push('/');
+                        current_text.push('/');
                     } else {
                         current_text.push('/');
                         current_text.push_str(&ipa_content);
                     }
                 }
-                '!' => {
-                    // Check for audio: ![caption](url) or !(caption)["url"]
-                    if chars.peek() == Some(&'[') {
-                        // Handle ![caption](url) or ![url] format
-                        if !current_text.is_empty() {
-                            document = document.add_child(AstNode::text(current_text.clone()));
-                            current_text.clear();
-                        }
-
-                        chars.next(); // consume '['
-                        let mut caption = String::new();
-                        let mut found_caption_end = false;
-
+                '{' => {
+                    flush_text(&mut document, &mut current_text);
+                    let (sub_text, found_brace) = Self::read_until(&mut chars, '}');
+                    if found_brace && !sub_text.is_empty() {
+                        let mut alias_text = String::new();
                         while let Some(&next_c) = chars.peek() {
-                            chars.next();
-                            if next_c == ']' {
-                                found_caption_end = true;
+                            if next_c.is_whitespace()
+                                || next_c == '('
+                                || next_c == '['
+                                || next_c == '+'
+                                || next_c == '~'
+                                || next_c == '!'
+                                || next_c == '/'
+                                || next_c == '{'
+                                || next_c == '}'
+                                || next_c == '#'
+                            {
                                 break;
                             }
-                            caption.push(next_c);
+                            chars.next();
+                            alias_text.push(next_c);
                         }
+                        let mut node = AstNode::new(NodeType::ShortSub, sub_text);
+                        if !alias_text.is_empty() {
+                            node = node.with_attribute("alias", alias_text);
+                        }
+                        document = document.add_child(node);
+                    } else {
+                        current_text.push('{');
+                        current_text.push_str(&sub_text);
+                    }
+                }
+                '!' => {
+                    if chars.peek() == Some(&'[') {
+                        flush_text(&mut document, &mut current_text);
+                        chars.next();
+                        let (caption, found_caption_end) = Self::read_until(&mut chars, ']');
 
                         if found_caption_end && chars.peek() == Some(&'(') {
-                            // Handle ![caption](url) format
-                            chars.next(); // consume '('
-                            let mut url = String::new();
-                            let mut found_url_end = false;
-
-                            while let Some(&next_c) = chars.peek() {
-                                chars.next();
-                                if next_c == ')' {
-                                    found_url_end = true;
-                                    break;
-                                }
-                                url.push(next_c);
-                            }
-
+                            chars.next();
+                            let (url, found_url_end) = Self::read_until(&mut chars, ')');
                             if found_url_end {
                                 let mut node = AstNode::new(NodeType::Audio, caption);
-                                node = node.with_attribute("src", url.trim_matches('"').trim_matches('\''));
+                                node = node.with_attribute(
+                                    "src",
+                                    url.trim_matches('"').trim_matches('\''),
+                                );
+                                document = document.add_child(node);
+                            } else {
+                                current_text.push_str(&format!("![{}]", caption));
+                            }
+                        } else if found_caption_end && chars.peek() == Some(&'[') {
+                            chars.next();
+                            let (url, found_url_end) = Self::read_until(&mut chars, ']');
+                            if found_url_end {
+                                let mut node = AstNode::new(NodeType::Audio, caption);
+                                node = node.with_attribute(
+                                    "src",
+                                    url.trim_matches('"').trim_matches('\''),
+                                );
                                 document = document.add_child(node);
                             } else {
                                 current_text.push_str(&format!("![{}]", caption));
                             }
                         } else if found_caption_end {
-                            // Handle ![url] format (url is in brackets, no caption)
-                            // Check if the caption looks like a URL
                             let possible_url = caption.trim_matches('"').trim_matches('\'');
-                            if possible_url.starts_with("http://") || possible_url.starts_with("https://") ||
-                               possible_url.starts_with("soundbank://") || possible_url.contains("://") ||
-                               possible_url.contains('.') {
+                            if possible_url.starts_with("http://")
+                                || possible_url.starts_with("https://")
+                                || possible_url.starts_with("soundbank://")
+                                || possible_url.contains("://")
+                                || possible_url.contains('.')
+                            {
                                 let mut node = AstNode::new(NodeType::Audio, String::new());
                                 node = node.with_attribute("src", possible_url);
                                 document = document.add_child(node);
@@ -379,45 +374,21 @@ impl SpeechMarkdownParser {
                             current_text.push_str(&format!("![{}", caption));
                         }
                     } else if chars.peek() == Some(&'(') {
-                        // Handle !(caption)["url"] format
-                        if !current_text.is_empty() {
-                            document = document.add_child(AstNode::text(current_text.clone()));
-                            current_text.clear();
-                        }
-
-                        chars.next(); // consume '('
-                        let mut caption = String::new();
-                        let mut found_caption_end = false;
-
-                        while let Some(&next_c) = chars.peek() {
-                            chars.next();
-                            if next_c == ')' {
-                                found_caption_end = true;
-                                break;
-                            }
-                            caption.push(next_c);
-                        }
-
+                        flush_text(&mut document, &mut current_text);
+                        chars.next();
+                        let (caption, found_caption_end) = Self::read_until(&mut chars, ')');
                         if found_caption_end && chars.peek() == Some(&'[') {
-                            chars.next(); // consume '['
-                            let mut url = String::new();
-                            let mut found_url_end = false;
-
-                            while let Some(&next_c) = chars.peek() {
-                                chars.next();
-                                if next_c == ']' {
-                                    found_url_end = true;
-                                    break;
-                                }
-                                url.push(next_c);
-                            }
-
+                            chars.next();
+                            let (url, found_url_end) = Self::read_until(&mut chars, ']');
                             if found_url_end {
                                 let mut node = AstNode::new(NodeType::Audio, caption);
-                                node = node.with_attribute("src", url.trim_matches('"').trim_matches('\''));
+                                node = node.with_attribute(
+                                    "src",
+                                    url.trim_matches('"').trim_matches('\''),
+                                );
                                 document = document.add_child(node);
                             } else {
-                                current_text.push_str(&format!("(!{}[", caption));
+                                current_text.push_str(&format!("!({}[", caption));
                             }
                         } else {
                             current_text.push_str(&format!("!({}", caption));
@@ -426,16 +397,12 @@ impl SpeechMarkdownParser {
                         current_text.push('!');
                     }
                 }
-                ' ' | '\t' | '\n' | '\r' => {
-                    current_text.push(c);
-                }
                 _ => {
                     current_text.push(c);
                 }
             }
         }
 
-        // Add remaining text
         if !current_text.is_empty() {
             document = document.add_child(AstNode::text(current_text));
         }
@@ -445,6 +412,37 @@ impl SpeechMarkdownParser {
 
     fn is_time_break(s: &str) -> bool {
         s.ends_with("s") || s.ends_with("ms")
+    }
+
+    fn read_until(chars: &mut std::iter::Peekable<std::str::Chars>, end: char) -> (String, bool) {
+        let mut content = String::new();
+        let mut found = false;
+        while let Some(&next_c) = chars.peek() {
+            chars.next();
+            if next_c == end {
+                found = true;
+                break;
+            }
+            content.push(next_c);
+        }
+        (content, found)
+    }
+
+    fn read_until_unescaped(
+        chars: &mut std::iter::Peekable<std::str::Chars>,
+        end: char,
+    ) -> (String, bool) {
+        let mut content = String::new();
+        let mut found = false;
+        while let Some(&next_c) = chars.peek() {
+            chars.next();
+            if next_c == end {
+                found = true;
+                break;
+            }
+            content.push(next_c);
+        }
+        (content, found)
     }
 }
 
@@ -503,7 +501,8 @@ mod tests {
     #[test]
     fn test_debug_emphasis_ssml() {
         let input = "++strong emphasis++";
-        let result = SpeechMarkdownParser::to_ssml(input, crate::formatters::base::Platform::AmazonAlexa);
+        let result =
+            SpeechMarkdownParser::to_ssml(input, crate::formatters::base::Platform::AmazonAlexa);
         println!("=== Emphasis SSML Debug ===");
         println!("Input: {}", input);
         println!("SSML Result: {:?}", result);

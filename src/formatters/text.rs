@@ -76,10 +76,10 @@ impl TextFormatter {
             }
 
             // Emphasis - just use the text
-            NodeType::ShortEmphasisModerate |
-            NodeType::ShortEmphasisStrong |
-            NodeType::ShortEmphasisNone |
-            NodeType::ShortEmphasisReduced => {
+            NodeType::ShortEmphasisModerate
+            | NodeType::ShortEmphasisStrong
+            | NodeType::ShortEmphasisNone
+            | NodeType::ShortEmphasisReduced => {
                 result.push(node.text.clone());
             }
 
@@ -115,14 +115,30 @@ impl TextFormatter {
             }
 
             // Modifiers are handled as part of text modifiers
-            NodeType::Emphasis | NodeType::Voice | NodeType::Lang |
-            NodeType::Rate | NodeType::Pitch | NodeType::Volume |
-            NodeType::Whisper | NodeType::Excited | NodeType::Disappointed |
-            NodeType::Newscaster | NodeType::Dj | NodeType::Date |
-            NodeType::Time | NodeType::Number | NodeType::Ordinal |
-            NodeType::Characters | NodeType::Fraction | NodeType::Telephone |
-            NodeType::Unit | NodeType::Address | NodeType::Interjection |
-            NodeType::Expletive | NodeType::Ipa | NodeType::Sub => {
+            NodeType::Emphasis
+            | NodeType::Voice
+            | NodeType::Lang
+            | NodeType::Rate
+            | NodeType::Pitch
+            | NodeType::Volume
+            | NodeType::Whisper
+            | NodeType::Excited
+            | NodeType::Disappointed
+            | NodeType::Newscaster
+            | NodeType::Dj
+            | NodeType::Date
+            | NodeType::Time
+            | NodeType::Number
+            | NodeType::Ordinal
+            | NodeType::Characters
+            | NodeType::Fraction
+            | NodeType::Telephone
+            | NodeType::Unit
+            | NodeType::Address
+            | NodeType::Interjection
+            | NodeType::Expletive
+            | NodeType::Ipa
+            | NodeType::Sub => {
                 // These are handled as part of text modifiers, not standalone
             }
 
@@ -136,11 +152,13 @@ impl TextFormatter {
     }
 
     fn clean_whitespace(&self, text: &str) -> String {
-        // Replace multiple whitespace with single space
-        let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
-
-        // Trim leading/trailing whitespace
-        text.trim().to_string()
+        let lines: Vec<&str> = text.lines().collect();
+        let cleaned: Vec<String> = lines
+            .iter()
+            .map(|line| line.split_whitespace().collect::<Vec<_>>().join(" "))
+            .collect();
+        let result = cleaned.join("\n");
+        result.trim().to_string()
     }
 }
 
@@ -213,12 +231,17 @@ mod tests {
         let formatter = TextFormatter::new();
         let result = formatter.format(&ast).unwrap();
 
-        assert_eq!(result, "Why do you keep switching voices from one to the other?");
+        assert_eq!(
+            result,
+            "Why do you keep switching voices from one to the other?"
+        );
     }
 
     #[test]
     fn test_format_with_audio() {
-        let ast = SpeechMarkdownParser::parse("Hello ![sound](\"https://example.com/audio.mp3\") world").unwrap();
+        let ast =
+            SpeechMarkdownParser::parse("Hello ![sound](\"https://example.com/audio.mp3\") world")
+                .unwrap();
 
         let formatter = TextFormatter::new();
         let result = formatter.format(&ast).unwrap();

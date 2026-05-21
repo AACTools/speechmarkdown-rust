@@ -1,0 +1,4 @@
+[submodule "tests/test-data"]
+	path = tests/test-data
+	url = https://github.com/willwade/speechmarkdown-test-files.git
+	branch = feat/expand-test-fixtures

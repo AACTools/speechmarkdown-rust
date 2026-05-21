@@ -98,8 +98,7 @@ pub fn create_formatter(platform: Platform, options: FormatterOptions) -> Box<dy
             Box::new(super::ssml::SsmlFormatterBase::new(options))
         }
         Platform::MicrosoftAzure => {
-            // For now, use the base SSML formatter
-            Box::new(super::ssml::SsmlFormatterBase::new(options))
+            Box::new(super::ssml::MicrosoftAzureSsmlFormatter::new(options))
         }
         Platform::Apple => {
             // For now, use the base SSML formatter

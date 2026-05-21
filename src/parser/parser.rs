@@ -37,6 +37,49 @@ impl SpeechMarkdownParser {
 
         while let Some(c) = chars.next() {
             match c {
+                '#' => {
+                    // Check for section notation: #[style] or #[key:value]
+                    if chars.peek() == Some(&'[') {
+                        if !current_text.is_empty() {
+                            document = document.add_child(AstNode::text(current_text.clone()));
+                            current_text.clear();
+                        }
+
+                        chars.next(); // consume '['
+                        let mut section_content = String::new();
+                        let mut found_bracket = false;
+
+                        while let Some(&next_c) = chars.peek() {
+                            chars.next();
+                            if next_c == ']' {
+                                found_bracket = true;
+                                break;
+                            }
+                            section_content.push(next_c);
+                        }
+
+                        if found_bracket {
+                            let mut node = AstNode::new(NodeType::Section, section_content.clone());
+
+                            // Parse section content as modifiers
+                            for modifier in section_content.split(';') {
+                                if let Some((key, value)) = modifier.split_once(':') {
+                                    node = node.with_attribute(key.trim(), value.trim().trim_matches('"').trim_matches('\''));
+                                } else {
+                                    // If no value, treat it as a style name
+                                    node = node.with_attribute("style", modifier.trim());
+                                }
+                            }
+                            document = document.add_child(node);
+                        } else {
+                            current_text.push('#');
+                            current_text.push('[');
+                            current_text.push_str(&section_content);
+                        }
+                    } else {
+                        current_text.push('#');
+                    }
+                }
                 '[' => {
                     // Check for break notation
                     if !current_text.is_empty() {

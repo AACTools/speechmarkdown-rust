@@ -4,7 +4,7 @@ use std::path::Path;
 
 #[test]
 fn test_all_test_cases() {
-    let test_data_dir = Path::new("tests/test-data");
+    let test_data_dir = Path::new("tests/test-data/test-data");
 
     // Get all test directories
     let entries = fs::read_dir(test_data_dir).expect("Failed to read test-data directory");
@@ -100,7 +100,7 @@ fn test_text_modifier() {
 }
 
 fn run_single_test(test_name: &str) {
-    let test_dir = Path::new("tests/test-data").join(test_name);
+    let test_dir = Path::new("tests/test-data/test-data").join(test_name);
     let smd_file = test_dir.join(format!("{}.smd", test_name));
 
     let input = fs::read_to_string(&smd_file)

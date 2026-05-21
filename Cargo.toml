@@ -1,0 +1,38 @@
+[package]
+name = "speechmarkdown-rust"
+version = "0.1.0"
+edition = "2021"
+authors = ["SpeechMarkdown Contributors"]
+description = "High-performance SpeechMarkdown parser with multi-language bindings"
+license = "MIT"
+repository = "https://github.com/speechmarkdown/speechmarkdown-rust"
+keywords = ["speech", "ssml", "tts", "voice", "parser"]
+categories = ["parser-implementations", "text-processing"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+once_cell = "1.19"
+
+[build-dependencies]
+pest_generator = "2.7"
+
+[dev-dependencies]
+criterion = "0.5"
+proptest = "1.4"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bench]]
+name = "parser_benchmark"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[profile.dev]
+opt-level = 0

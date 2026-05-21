@@ -102,9 +102,35 @@ impl SsmlFormatterBase {
 
     fn format_document(&self, node: &AstNode) -> Result<String> {
         let mut content = String::new();
+        let mut children_iter = node.children.iter().peekable();
 
-        for child in &node.children {
-            content.push_str(&self.format_node_with_tags(child)?);
+        while let Some(child) = children_iter.next() {
+            if child.node_type == NodeType::Section {
+                // Collect all content until the next section or end
+                let mut section_content = String::new();
+
+                while let Some(next_child) = children_iter.peek() {
+                    if next_child.node_type == NodeType::Section {
+                        break;
+                    }
+                    let next_child = children_iter.next().unwrap();
+                    section_content.push_str(&self.format_node_with_tags(next_child)?);
+                }
+
+                // Format the section with its content
+                let section_open = self.format_node_with_tags(child)?;
+                let section_close = if child.node_type == NodeType::Section {
+                    self.format_section_close(child)?
+                } else {
+                    String::new()
+                };
+
+                content.push_str(&section_open);
+                content.push_str(&section_content);
+                content.push_str(&section_close);
+            } else {
+                content.push_str(&self.format_node_with_tags(child)?);
+            }
         }
 
         if self.options.include_speak_tag {
@@ -149,6 +175,21 @@ impl SsmlFormatterBase {
     fn format_section(&self, node: &AstNode) -> Result<String> {
         // Sections apply modifiers to all content within
         self.format_children_with_modifiers(node, &node.children)
+    }
+
+    fn format_section_close(&self, node: &AstNode) -> Result<String> {
+        // Default implementation - override in platform-specific formatters
+        match node.node_type {
+            NodeType::Section => {
+                // Check if this is a style/emotion section
+                if node.attributes.contains_key("style") || node.attributes.contains_key("emotion") {
+                    Ok("</mstts:express-as>".to_string())
+                } else {
+                    Ok(String::new())
+                }
+            }
+            _ => Ok(String::new())
+        }
     }
 
     fn format_short_break(&self, node: &AstNode) -> Result<String> {

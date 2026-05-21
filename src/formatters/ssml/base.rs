@@ -59,7 +59,7 @@ impl SsmlFormatterBase {
             NodeType::Section => self.format_section(node),
 
             // Content nodes
-            NodeType::PlainText => Ok(self.escape_xml(&node.text)),
+            NodeType::PlainText => Ok(node.text.clone()),
 
             // Breaks
             NodeType::ShortBreak => self.format_short_break(node),
@@ -68,7 +68,7 @@ impl SsmlFormatterBase {
             // Emphasis
             NodeType::ShortEmphasisModerate => self.format_emphasis(node, "moderate"),
             NodeType::ShortEmphasisStrong => self.format_emphasis(node, "strong"),
-            NodeType::ShortEmphasisNone => self.format_emphasis(node, "reduced"),
+            NodeType::ShortEmphasisNone => self.format_emphasis(node, "none"),
             NodeType::ShortEmphasisReduced => self.format_emphasis(node, "reduced"),
 
             // Text modifiers
@@ -99,26 +99,33 @@ impl SsmlFormatterBase {
         while let Some(child) = children_iter.next() {
             if child.node_type == NodeType::Section {
                 // Collect all content until the next section or end
-                let mut section_content = String::new();
+                let mut section_content_raw = String::new();
 
                 while let Some(next_child) = children_iter.peek() {
                     if next_child.node_type == NodeType::Section {
                         break;
                     }
                     let next_child = children_iter.next().unwrap();
-                    section_content.push_str(&self.format_node_with_tags(next_child)?);
+                    section_content_raw.push_str(&self.format_node_with_tags(next_child)?);
                 }
+                let section_content = if section_content_raw.starts_with('\n') {
+                    &section_content_raw[1..]
+                } else {
+                    &section_content_raw
+                };
 
-                // Format the section with its content
                 let section_open = self.format_node_with_tags(child)?;
-                let section_close = if child.node_type == NodeType::Section {
+                let section_close = if !section_open.is_empty() {
                     self.format_section_close(child)?
                 } else {
                     String::new()
                 };
 
                 content.push_str(&section_open);
-                content.push_str(&section_content);
+                if !section_open.is_empty() && section_content.starts_with('\n') {
+                    content.push('\n');
+                }
+                content.push_str(section_content);
                 content.push_str(&section_close);
             } else {
                 content.push_str(&self.format_node_with_tags(child)?);
@@ -186,16 +193,15 @@ impl SsmlFormatterBase {
         }
 
         let mut result = String::new();
-        for (tag_name, attrs) in &tags {
-            let attr_string = attrs
-                .iter()
-                .map(|(k, v)| format!("{}=\"{}\"", k, self.escape_xml(v)))
-                .collect::<Vec<_>>()
-                .join(" ");
+        for (i, (tag_name, attrs)) in tags.iter().enumerate() {
+            let attr_string = self.format_attr_string(tag_name, attrs);
+            if i > 0 {
+                result.push('\n');
+            }
             if attr_string.is_empty() {
-                result.push_str(&format!("<{}>\n", tag_name));
+                result.push_str(&format!("<{}>", tag_name));
             } else {
-                result.push_str(&format!("<{} {}>\n", tag_name, attr_string));
+                result.push_str(&format!("<{} {}>", tag_name, attr_string));
             }
         }
         Ok(result)
@@ -256,6 +262,7 @@ impl SsmlFormatterBase {
 
     fn format_text_modifier(&self, node: &AstNode) -> Result<String> {
         let mut tags: Vec<(String, HashMap<String, String>)> = Vec::new();
+        let mut last_say_as: Option<(String, HashMap<String, String>)> = None;
 
         for (key, value) in &node.attributes {
             if let Some(tag_info) = self.attribute_to_tag(key, value) {
@@ -268,12 +275,20 @@ impl SsmlFormatterBase {
                         continue;
                     }
                 }
+                if tag_name == "say-as" {
+                    last_say_as = Some(tag_info);
+                    continue;
+                }
                 tags.push(tag_info);
             }
         }
 
+        if let Some(say_as) = last_say_as {
+            tags.push(say_as);
+        }
+
         if tags.is_empty() {
-            return Ok(self.escape_xml(&node.text));
+            return Ok(node.text.clone());
         }
 
         self.apply_tags_to_text(&node.text, &tags)
@@ -443,10 +458,10 @@ impl SsmlFormatterBase {
             })),
             "time" => Some(("say-as".to_string(), {
                 let mut attrs = HashMap::new();
-                attrs.insert("interpret-as".to_string(), "time".to_string());
                 if !value.is_empty() {
                     attrs.insert("format".to_string(), value.to_string());
                 }
+                attrs.insert("interpret-as".to_string(), "time".to_string());
                 attrs
             })),
             "number" | "cardinal" => Some(("say-as".to_string(), {
@@ -504,9 +519,10 @@ impl SsmlFormatterBase {
                 Some(("sub".to_string(), attributes))
             }
             "voice" => {
-                if !value.is_empty() {
-                    attributes.insert("name".to_string(), value.to_string());
+                if value.is_empty() || value == "device" {
+                    return None;
                 }
+                attributes.insert("name".to_string(), value.to_string());
                 Some(("voice".to_string(), attributes))
             }
             "lang" => {
@@ -545,6 +561,24 @@ impl SsmlFormatterBase {
                 attrs.insert("name".to_string(), "whispered".to_string());
                 attrs
             })),
+            "excited" => {
+                let intensity = if value.is_empty() { "medium" } else { value };
+                Some(("amazon:emotion".to_string(), {
+                    let mut attrs = HashMap::new();
+                    attrs.insert("name".to_string(), "excited".to_string());
+                    attrs.insert("intensity".to_string(), intensity.to_string());
+                    attrs
+                }))
+            }
+            "disappointed" => {
+                let intensity = if value.is_empty() { "medium" } else { value };
+                Some(("amazon:emotion".to_string(), {
+                    let mut attrs = HashMap::new();
+                    attrs.insert("name".to_string(), "disappointed".to_string());
+                    attrs.insert("intensity".to_string(), intensity.to_string());
+                    attrs
+                }))
+            }
             _ => None,
         }
     }
@@ -563,6 +597,34 @@ impl SsmlFormatterBase {
     }
 
     /// Apply multiple tags to text in the correct order
+    fn format_attr_string(&self, tag_name: &str, attributes: &HashMap<String, String>) -> String {
+        let order: Vec<&str> = match tag_name {
+            "say-as" => vec!["interpret-as", "format"],
+            "phoneme" => vec!["alphabet", "ph"],
+            "prosody" => vec!["rate", "pitch", "volume"],
+            "voice" => vec!["name"],
+            "lang" => vec!["xml:lang"],
+            "emphasis" => vec!["level"],
+            "amazon:effect" => vec!["name"],
+            "amazon:emotion" => vec!["name", "intensity"],
+            "sub" => vec!["alias"],
+            _ => vec![],
+        };
+
+        let mut parts: Vec<String> = Vec::new();
+        for key in &order {
+            if let Some(value) = attributes.get(*key) {
+                parts.push(format!("{}=\"{}\"", key, value));
+            }
+        }
+        for (key, value) in attributes {
+            if !order.contains(&key.as_str()) {
+                parts.push(format!("{}=\"{}\"", key, value));
+            }
+        }
+        parts.join(" ")
+    }
+
     fn apply_tags_to_text(
         &self,
         text: &str,
@@ -570,7 +632,6 @@ impl SsmlFormatterBase {
     ) -> Result<String> {
         let mut current_text = text.to_string();
 
-        // Sort tags according to the defined order
         let mut sorted_tags = tags.to_vec();
         sorted_tags.sort_by_key(|(tag_name, _)| {
             self.tag_sort_order
@@ -579,13 +640,8 @@ impl SsmlFormatterBase {
                 .unwrap_or(usize::MAX)
         });
 
-        // Apply tags from inside to outside (reverse order)
         for (tag_name, attributes) in sorted_tags.iter().rev() {
-            let attr_string = attributes
-                .iter()
-                .map(|(k, v)| format!("{}=\"{}\"", k, self.escape_xml(v)))
-                .collect::<Vec<_>>()
-                .join(" ");
+            let attr_string = self.format_attr_string(tag_name, attributes);
 
             if attr_string.is_empty() {
                 current_text = format!("<{}>{}</{}>", tag_name, current_text, tag_name);
@@ -619,9 +675,6 @@ impl SsmlFormatterBase {
         text.replace('&', "&amp;")
             .replace('<', "&lt;")
             .replace('>', "&gt;")
-            .replace('"', "&quot;")
-        // Note: We don't escape apostrophes as they're generally safe in SSML
-        // and many implementations prefer literal ' over &apos;
     }
 }
 

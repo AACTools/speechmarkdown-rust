@@ -90,18 +90,20 @@ impl TextFormatter {
             }
 
             // IPA - use the text content (pronunciation)
-            NodeType::ShortIpa | NodeType::BareIpa => {
-                // For IPA, we use the text (pronunciation) as the spoken text
+            NodeType::ShortIpa => {
                 result.push(node.text.clone());
+            }
+            NodeType::BareIpa => {
+                if let Some(ph) = node.attributes.get("ph") {
+                    result.push(ph.clone());
+                } else {
+                    result.push(node.text.clone());
+                }
             }
 
             // Substitution - use the alias if available, otherwise the text
             NodeType::ShortSub => {
-                if let Some(alias) = node.attributes.get("alias") {
-                    result.push(alias.clone());
-                } else {
-                    result.push(node.text.clone());
-                }
+                result.push(node.text.clone());
             }
 
             // Audio - no output in plain text
@@ -209,19 +211,13 @@ mod tests {
 
     #[test]
     fn test_format_with_substitution() {
-        let input = "(Al){aluminum}";
+        let input = "{Al}aluminum";
         let ast = SpeechMarkdownParser::parse(input).unwrap();
-
-        println!("Input: {}", input);
-        println!("AST: {:?}", ast);
 
         let formatter = TextFormatter::new();
         let result = formatter.format(&ast).unwrap();
 
-        println!("Result: {}", result);
-        println!("Expected: aluminum");
-
-        assert_eq!(result, "aluminum");
+        assert_eq!(result, "Al");
     }
 
     #[test]

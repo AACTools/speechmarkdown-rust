@@ -53,10 +53,8 @@ impl SpeechMarkdownParser {
                         let mut node = AstNode::new(NodeType::Section, section_content.clone());
                         for modifier in section_content.split(';') {
                             if let Some((key, value)) = modifier.split_once(':') {
-                                node = node.with_attribute(
-                                    key.trim(),
-                                    value.trim().trim_matches('"').trim_matches('\''),
-                                );
+                                node = node
+                                    .with_attribute(key.trim(), Self::strip_quotes(value.trim()));
                             } else {
                                 node = node.with_attribute("style", modifier.trim());
                             }
@@ -73,10 +71,7 @@ impl SpeechMarkdownParser {
                     let (bracket_content, found) = Self::read_until(&mut chars, ']');
                     if found {
                         if bracket_content.starts_with("break:") {
-                            let break_value = bracket_content[6..]
-                                .trim()
-                                .trim_matches('"')
-                                .trim_matches('\'');
+                            let break_value = Self::strip_quotes(bracket_content[6..].trim());
                             if Self::is_time_break(break_value) {
                                 document = document.add_child(AstNode::new(
                                     NodeType::ShortBreak,
@@ -89,10 +84,7 @@ impl SpeechMarkdownParser {
                                 document = document.add_child(node);
                             }
                         } else if bracket_content.starts_with("mark:") {
-                            let mark_value = bracket_content[5..]
-                                .trim()
-                                .trim_matches('"')
-                                .trim_matches('\'');
+                            let mark_value = Self::strip_quotes(bracket_content[5..].trim());
                             document = document
                                 .add_child(AstNode::new(NodeType::Mark, mark_value.to_string()));
                         } else if Self::is_time_break(&bracket_content) {
@@ -128,6 +120,41 @@ impl SpeechMarkdownParser {
                     } else {
                         current_text.push('~');
                         current_text.push_str(&emphasized_text);
+                    }
+                }
+                '-' => {
+                    let prev_is_boundary = current_text.is_empty()
+                        || current_text.ends_with(|c: char| c.is_whitespace());
+                    if !prev_is_boundary {
+                        current_text.push('-');
+                    } else {
+                        flush_text(&mut document, &mut current_text);
+                        let mut emphasized_text = String::new();
+                        let mut found_end = false;
+                        while let Some(&next_c) = chars.peek() {
+                            chars.next();
+                            if next_c == '-' {
+                                let next_is_boundary =
+                                    chars.peek().map_or(true, |c| c.is_whitespace());
+                                if next_is_boundary {
+                                    found_end = true;
+                                    break;
+                                } else {
+                                    emphasized_text.push('-');
+                                }
+                            } else {
+                                emphasized_text.push(next_c);
+                            }
+                        }
+                        if found_end && !emphasized_text.is_empty() {
+                            document = document.add_child(AstNode::new(
+                                NodeType::ShortEmphasisReduced,
+                                emphasized_text,
+                            ));
+                        } else {
+                            current_text.push('-');
+                            current_text.push_str(&emphasized_text);
+                        }
                     }
                 }
                 '+' => {
@@ -197,7 +224,7 @@ impl SpeechMarkdownParser {
                                     if let Some((key, value)) = modifier.split_once(':') {
                                         node = node.with_attribute(
                                             key.trim(),
-                                            value.trim().trim_matches('"').trim_matches('\''),
+                                            Self::strip_quotes(value.trim()),
                                         );
                                     } else {
                                         let key = modifier.trim();
@@ -335,10 +362,7 @@ impl SpeechMarkdownParser {
                             let (url, found_url_end) = Self::read_until(&mut chars, ')');
                             if found_url_end {
                                 let mut node = AstNode::new(NodeType::Audio, caption);
-                                node = node.with_attribute(
-                                    "src",
-                                    url.trim_matches('"').trim_matches('\''),
-                                );
+                                node = node.with_attribute("src", Self::strip_quotes(&url));
                                 document = document.add_child(node);
                             } else {
                                 current_text.push_str(&format!("![{}]", caption));
@@ -348,16 +372,13 @@ impl SpeechMarkdownParser {
                             let (url, found_url_end) = Self::read_until(&mut chars, ']');
                             if found_url_end {
                                 let mut node = AstNode::new(NodeType::Audio, caption);
-                                node = node.with_attribute(
-                                    "src",
-                                    url.trim_matches('"').trim_matches('\''),
-                                );
+                                node = node.with_attribute("src", Self::strip_quotes(&url));
                                 document = document.add_child(node);
                             } else {
                                 current_text.push_str(&format!("![{}]", caption));
                             }
                         } else if found_caption_end {
-                            let possible_url = caption.trim_matches('"').trim_matches('\'');
+                            let possible_url = Self::strip_quotes(&caption);
                             if possible_url.starts_with("http://")
                                 || possible_url.starts_with("https://")
                                 || possible_url.starts_with("soundbank://")
@@ -382,10 +403,7 @@ impl SpeechMarkdownParser {
                             let (url, found_url_end) = Self::read_until(&mut chars, ']');
                             if found_url_end {
                                 let mut node = AstNode::new(NodeType::Audio, caption);
-                                node = node.with_attribute(
-                                    "src",
-                                    url.trim_matches('"').trim_matches('\''),
-                                );
+                                node = node.with_attribute("src", Self::strip_quotes(&url));
                                 document = document.add_child(node);
                             } else {
                                 current_text.push_str(&format!("!({}[", caption));
@@ -408,6 +426,18 @@ impl SpeechMarkdownParser {
         }
 
         Ok(document)
+    }
+
+    fn strip_quotes(s: &str) -> &str {
+        let s = s.trim();
+        if s.len() >= 2 {
+            let first = s.chars().next().unwrap();
+            let last = s.chars().last().unwrap();
+            if (first == '"' && last == '"') || (first == '\'' && last == '\'') {
+                return &s[1..s.len() - 1];
+            }
+        }
+        s
     }
 
     fn is_time_break(s: &str) -> bool {

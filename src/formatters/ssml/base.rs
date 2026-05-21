@@ -234,8 +234,12 @@ impl SsmlFormatterBase {
     }
 
     fn format_bare_ipa(&self, node: &AstNode) -> Result<String> {
+        let phoneme = node.attributes.get("ph")
+            .unwrap_or(&node.text)
+            .clone();
+
         Ok(format!("<phoneme alphabet=\"ipa\" ph=\"{}\">ipa</phoneme>",
-            self.escape_xml(&node.text)))
+            self.escape_xml(&phoneme)))
     }
 
     fn format_short_sub(&self, node: &AstNode) -> Result<String> {

@@ -163,6 +163,9 @@ jobs:
           working-directory: bindings/python
           sccache: "false"
           manylinux: auto
+      - name: Fix dist permissions
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: chmod -R 777 bindings/python/dist || true
       - name: Build sdist
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         uses: PyO3/maturin-action@v1

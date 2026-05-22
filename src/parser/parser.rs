@@ -29,6 +29,26 @@ impl SpeechMarkdownParser {
         formatter.format(&ast)
     }
 
+    /// Check if a string contains SpeechMarkdown syntax
+    pub fn is_speech_markdown(input: &str) -> bool {
+        if let Ok(ast) = Self::parse(input) {
+            ast.children.iter().any(|child| {
+                !matches!(
+                    child.node_type,
+                    NodeType::Document | NodeType::PlainText | NodeType::EmptyLine
+                )
+            })
+        } else {
+            false
+        }
+    }
+
+    /// Validate SpeechMarkdown input, returning an error message if invalid
+    pub fn validate(input: &str) -> Result<()> {
+        Self::parse(input)?;
+        Ok(())
+    }
+
     /// Simple manual parser for basic SpeechMarkdown syntax
     fn parse_simple(input: &str) -> Result<AstNode> {
         let mut document = AstNode::document();
@@ -544,5 +564,25 @@ mod tests {
         println!("Input: {}", input);
         println!("SSML Result: {:?}", result);
         println!("==========================");
+    }
+
+    #[test]
+    fn test_is_speech_markdown() {
+        assert!(!SpeechMarkdownParser::is_speech_markdown("Hello world"));
+        assert!(!SpeechMarkdownParser::is_speech_markdown(""));
+        assert!(SpeechMarkdownParser::is_speech_markdown("Hello (world)[emphasis:\"strong\"]"));
+        assert!(SpeechMarkdownParser::is_speech_markdown("Sample [2s] text"));
+        assert!(SpeechMarkdownParser::is_speech_markdown("++strong++"));
+        assert!(SpeechMarkdownParser::is_speech_markdown("~word~"));
+        assert!(SpeechMarkdownParser::is_speech_markdown("{Al}aluminum"));
+        assert!(SpeechMarkdownParser::is_speech_markdown("![audio](url)"));
+    }
+
+    #[test]
+    fn test_validate() {
+        assert!(SpeechMarkdownParser::validate("Hello world").is_ok());
+        assert!(SpeechMarkdownParser::validate("Hello (world)[emphasis:\"strong\"]").is_ok());
+        assert!(SpeechMarkdownParser::validate("Sample [2s] text").is_ok());
+        assert!(SpeechMarkdownParser::validate("++strong++").is_ok());
     }
 }

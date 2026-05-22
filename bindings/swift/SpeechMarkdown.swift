@@ -6,6 +6,21 @@ public class SpeechMarkdownParser {
 
     public init() {}
 
+    public func isSpeechMarkdown(input: String) -> Bool {
+        return input.withCString { inputPtr in
+            speechmarkdown_is_speech_markdown(inputPtr)
+        }
+    }
+
+    public func validate(input: String) throws {
+        let valid = input.withCString { inputPtr in
+            speechmarkdown_validate(inputPtr)
+        }
+        if !valid {
+            throw SpeechMarkdownError.fromLastError(context: "validate")
+        }
+    }
+
     public func toSsml(input: String, platform: String) throws -> String {
         return try SpeechMarkdownParser.lock.withLock {
             let result: String? = try input.withCString { inputPtr in

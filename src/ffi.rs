@@ -154,3 +154,41 @@ pub unsafe extern "C" fn speechmarkdown_parse(input: *const c_char) -> *mut c_ch
         }
     }
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn speechmarkdown_is_speech_markdown(input: *const c_char) -> bool {
+    if input.is_null() {
+        return false;
+    }
+
+    let input_str = match CStr::from_ptr(input).to_str() {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+
+    SpeechMarkdownParser::is_speech_markdown(input_str)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn speechmarkdown_validate(input: *const c_char) -> bool {
+    if input.is_null() {
+        set_last_error("input argument is null");
+        return false;
+    }
+
+    let input_str = match CStr::from_ptr(input).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("input is not valid UTF-8");
+            return false;
+        }
+    };
+
+    match SpeechMarkdownParser::validate(input_str) {
+        Ok(()) => true,
+        Err(e) => {
+            set_last_error(&e.to_string());
+            false
+        }
+    }
+}

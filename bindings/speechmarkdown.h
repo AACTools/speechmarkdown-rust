@@ -32,6 +32,10 @@ void speechmarkdown_free(char* s);
 //          Caller must free with speechmarkdown_free().
 const char* speechmarkdown_get_error(void);
 
+bool speechmarkdown_is_speech_markdown(const char* input);
+
+bool speechmarkdown_validate(const char* input);
+
 #ifdef __cplusplus
 }
 #endif

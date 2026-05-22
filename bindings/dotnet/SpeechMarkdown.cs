@@ -27,6 +27,14 @@ namespace SpeechMarkdown
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr speechmarkdown_get_error();
 
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        [return: MarshalAs(UnmanagedType.I1)]
+        private static extern bool speechmarkdown_is_speech_markdown(IntPtr input);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        [return: MarshalAs(UnmanagedType.I1)]
+        private static extern bool speechmarkdown_validate(IntPtr input);
+
         public SpeechMarkdownParser()
         {
         }
@@ -107,6 +115,50 @@ namespace SpeechMarkdown
                     }
 
                     return PtrToStringAndFree(resultPtr);
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(inputPtr);
+                }
+            }
+        }
+
+        public bool IsSpeechMarkdown(string input)
+        {
+            if (input == null) throw new ArgumentNullException(nameof(input));
+
+            lock (_lock)
+            {
+                IntPtr inputPtr = MarshalUtf8(input);
+
+                try
+                {
+                    return speechmarkdown_is_speech_markdown(inputPtr);
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(inputPtr);
+                }
+            }
+        }
+
+        public bool Validate(string input)
+        {
+            if (input == null) throw new ArgumentNullException(nameof(input));
+
+            lock (_lock)
+            {
+                IntPtr inputPtr = MarshalUtf8(input);
+
+                try
+                {
+                    bool valid = speechmarkdown_validate(inputPtr);
+                    if (!valid)
+                    {
+                        string error = GetAndFreeError();
+                        throw new SpeechMarkdownException(error ?? "Validation failed");
+                    }
+                    return true;
                 }
                 finally
                 {

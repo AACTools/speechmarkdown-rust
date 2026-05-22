@@ -31,10 +31,25 @@ fn parse(input: &str) -> PyResult<String> {
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
 }
 
+#[pyfunction]
+fn is_speech_markdown(input: &str) -> PyResult<bool> {
+    Ok(SpeechMarkdownParser::is_speech_markdown(input))
+}
+
+#[pyfunction]
+fn validate(input: &str) -> PyResult<bool> {
+    match SpeechMarkdownParser::validate(input) {
+        Ok(()) => Ok(true),
+        Err(e) => Err(pyo3::exceptions::PyValueError::new_err(e.to_string())),
+    }
+}
+
 #[pymodule]
 fn speechmarkdown(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(to_ssml, m)?)?;
     m.add_function(wrap_pyfunction!(to_text, m)?)?;
     m.add_function(wrap_pyfunction!(parse, m)?)?;
+    m.add_function(wrap_pyfunction!(is_speech_markdown, m)?)?;
+    m.add_function(wrap_pyfunction!(validate, m)?)?;
     Ok(())
 }

@@ -27,3 +27,16 @@ pub fn parse(input: String) -> Result<String> {
     let ast = SpeechMarkdownParser::parse(&input).map_err(|e| Error::from_reason(e.to_string()))?;
     serde_json::to_string(&ast).map_err(|e| Error::from_reason(e.to_string()))
 }
+
+#[napi]
+pub fn is_speech_markdown(input: String) -> Result<bool> {
+    Ok(SpeechMarkdownParser::is_speech_markdown(&input))
+}
+
+#[napi]
+pub fn validate(input: String) -> Result<bool> {
+    match SpeechMarkdownParser::validate(&input) {
+        Ok(()) => Ok(true),
+        Err(e) => Err(Error::from_reason(e.to_string())),
+    }
+}

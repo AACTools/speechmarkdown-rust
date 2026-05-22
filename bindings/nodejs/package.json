@@ -12,8 +12,19 @@
     "test": "node test.js",
     "version": "napi version"
   },
-  "keywords": ["speech", "ssml", "tts", "voice", "speechmarkdown"],
+  "keywords": [
+    "speech",
+    "ssml",
+    "tts",
+    "voice",
+    "speechmarkdown"
+  ],
   "license": "MIT",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "*.node"
+  ],
   "napi": {
     "binaryName": "speechmarkdown",
     "targets": [
@@ -28,5 +39,14 @@
   },
   "devDependencies": {
     "@napi-rs/cli": "^3"
+  },
+  "optionalDependencies": {
+    "speechmarkdown-win32-x64-msvc": "0.1.0",
+    "speechmarkdown-win32-arm64-msvc": "0.1.0",
+    "speechmarkdown-darwin-x64": "0.1.0",
+    "speechmarkdown-darwin-arm64": "0.1.0",
+    "speechmarkdown-linux-x64-gnu": "0.1.0",
+    "speechmarkdown-linux-arm64-gnu": "0.1.0",
+    "speechmarkdown-linux-x64-musl": "0.1.0"
   }
 }

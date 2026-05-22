@@ -3,7 +3,7 @@ use napi_derive::napi;
 use speechmarkdown_rust::{Platform, SpeechMarkdownParser};
 
 fn parse_platform(platform: &str) -> Result<Platform> {
-    Platform::from_str(platform).ok_or_else(|| {
+    Platform::from_platform_str(platform).ok_or_else(|| {
         Error::from_reason(format!(
             "unsupported platform: '{}'. Use one of: amazon-alexa, google-assistant, microsoft-azure, apple, w3c, samsung-bixby, elevenlabs, ibm-watson",
             platform

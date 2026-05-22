@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use speechmarkdown_rust::{Platform, SpeechMarkdownParser};
 
 fn parse_platform(platform: &str) -> PyResult<Platform> {
-    Platform::from_str(platform).ok_or_else(|| {
+    Platform::from_platform_str(platform).ok_or_else(|| {
         pyo3::exceptions::PyValueError::new_err(format!(
             "unsupported platform: '{}'. Use one of: amazon-alexa, google-assistant, microsoft-azure, apple, w3c, samsung-bixby, elevenlabs, ibm-watson",
             platform

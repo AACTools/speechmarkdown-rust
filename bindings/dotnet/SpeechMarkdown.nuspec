@@ -7,7 +7,7 @@
     <authors>SpeechMarkdown Contributors</authors>
     <description>SpeechMarkdown parser - convert SpeechMarkdown syntax to SSML for Alexa, Google Assistant, Azure, and more.</description>
     <copyright>Copyright © SpeechMarkdown Contributors</copyright>
-    <license type="MIT">MIT</license>
+    <license type="expression">MIT</license>
     <projectUrl>https://github.com/speechmarkdown/speechmarkdown-rust</projectUrl>
     <repository type="git" url="https://github.com/speechmarkdown/speechmarkdown-rust" />
     <tags>speech ssml tts voice speechmarkdown alexa google azure</tags>

@@ -157,7 +157,7 @@ jobs:
         with:
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist -i python3
+          args: --release --out dist -i python3.13
           working-directory: bindings/python
           sccache: "true"
           manylinux: auto
@@ -168,6 +168,7 @@ jobs:
           command: sdist
           args: --out dist
           working-directory: bindings/python
+          sccache: "false"
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.target }}
@@ -265,11 +266,11 @@ jobs:
           registry-url: "https://registry.npmjs.org"
       - uses: actions/download-artifact@v4
         with:
-          path: npm-artifacts
+          path: ${{ github.workspace }}/npm-artifacts
           pattern: npm-*
           merge-multiple: true
       - name: Collect .node binaries
-        run: find ../npm-artifacts -name '*.node' -exec cp {} . \;
+        run: find ${{ github.workspace }}/npm-artifacts -name '*.node' -exec cp {} . \;
       - run: npm install @napi-rs/cli
       - name: Test
         run: node test.js

@@ -10,13 +10,7 @@ namespace SpeechMarkdown
 
         private IntPtr _libraryHandle;
 
-#if WINDOWS
         private const string DllName = "speechmarkdown_rust";
-#elif LINUX
-        private const string DllName = "libspeechmarkdown_rust.so";
-#else
-        private const string DllName = "libspeechmarkdown_rust.dylib";
-#endif
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr speechmarkdown_to_ssml(IntPtr input, IntPtr platform);

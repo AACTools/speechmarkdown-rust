@@ -1,0 +1,13 @@
+[package]
+name = "speechmarkdown-python"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "speechmarkdown"
+crate-type = ["cdylib"]
+
+[dependencies]
+speechmarkdown-rust = { path = "../.." }
+pyo3 = { version = "0.24", features = ["extension-module"] }
+serde_json = "1.0"

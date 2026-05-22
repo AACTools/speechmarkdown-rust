@@ -1,17 +1,33 @@
 {
-  "name": "speechmarkdown-rust",
+  "name": "speechmarkdown",
   "version": "0.1.0",
-  "description": "SpeechMarkdown parser - Node.js bindings via native addon",
+  "description": "SpeechMarkdown parser - convert SpeechMarkdown to SSML",
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
-    "build": "cargo build --release && node build.js",
-    "test": "node test.js"
+    "artifacts": "napi artifacts",
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm",
+    "test": "node test.js",
+    "version": "napi version"
   },
   "keywords": ["speech", "ssml", "tts", "voice", "speechmarkdown"],
   "license": "MIT",
   "napi": {
-    "name": "speechmarkdown",
-    "triples": {}
+    "binaryName": "speechmarkdown",
+    "targets": [
+      "x86_64-pc-windows-msvc",
+      "aarch64-pc-windows-msvc",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-musl"
+    ]
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3"
   }
 }

@@ -1,0 +1,25 @@
+<Project>
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' Or '$(TargetFramework)' == 'net6.0' Or '$(TargetFramework)' == 'net8.0'">
+    <Compile Include="$(MSBuildThisFileDirectory)..\src\SpeechMarkdown.cs" Link="SpeechMarkdown.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Condition="Exists('$(MSBuildThisFileDirectory)..\runtimes\win-x64\native\speechmarkdown_rust.dll')"
+          Include="$(MSBuildThisFileDirectory)..\runtimes\win-x64\native\speechmarkdown_rust.dll"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Condition="Exists('$(MSBuildThisFileDirectory)..\runtimes\win-arm64\native\speechmarkdown_rust.dll')"
+          Include="$(MSBuildThisFileDirectory)..\runtimes\win-arm64\native\speechmarkdown_rust.dll"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Condition="Exists('$(MSBuildThisFileDirectory)..\runtimes\linux-x64\native\libspeechmarkdown_rust.so')"
+          Include="$(MSBuildThisFileDirectory)..\runtimes\linux-x64\native\libspeechmarkdown_rust.so"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Condition="Exists('$(MSBuildThisFileDirectory)..\runtimes\linux-arm64\native\libspeechmarkdown_rust.so')"
+          Include="$(MSBuildThisFileDirectory)..\runtimes\linux-arm64\native\libspeechmarkdown_rust.so"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Condition="Exists('$(MSBuildThisFileDirectory)..\runtimes\osx-x64\native\libspeechmarkdown_rust.dylib')"
+          Include="$(MSBuildThisFileDirectory)..\runtimes\osx-x64\native\libspeechmarkdown_rust.dylib"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Condition="Exists('$(MSBuildThisFileDirectory)..\runtimes\osx-arm64\native\libspeechmarkdown_rust.dylib')"
+          Include="$(MSBuildThisFileDirectory)..\runtimes\osx-arm64\native\libspeechmarkdown_rust.dylib"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

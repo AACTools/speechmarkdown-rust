@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package>
+  <metadata>
+    <id>SpeechMarkdown</id>
+    <version>0.1.0</version>
+    <title>SpeechMarkdown</title>
+    <authors>SpeechMarkdown Contributors</authors>
+    <description>SpeechMarkdown parser - convert SpeechMarkdown syntax to SSML for Alexa, Google Assistant, Azure, and more.</description>
+    <copyright>Copyright © SpeechMarkdown Contributors</copyright>
+    <license type="MIT">MIT</license>
+    <projectUrl>https://github.com/speechmarkdown/speechmarkdown-rust</projectUrl>
+    <repository type="git" url="https://github.com/speechmarkdown/speechmarkdown-rust" />
+    <tags>speech ssml tts voice speechmarkdown alexa google azure</tags>
+    <readme>README.md</readme>
+    <dependencies>
+      <group targetFramework="netstandard2.0" />
+      <group targetFramework="net6.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="SpeechMarkdown.cs" target="src\" />
+    <file src="SpeechMarkdown.targets" target="build\" />
+    <file src="..\..\README.md" target="README.md" />
+    <file src="runtimes\win-x64\native\speechmarkdown_rust.dll" target="runtimes\win-x64\native\" />
+    <file src="runtimes\win-arm64\native\speechmarkdown_rust.dll" target="runtimes\win-arm64\native\" />
+    <file src="runtimes\linux-x64\native\libspeechmarkdown_rust.so" target="runtimes\linux-x64\native\" />
+    <file src="runtimes\linux-arm64\native\libspeechmarkdown_rust.so" target="runtimes\linux-arm64\native\" />
+    <file src="runtimes\osx-x64\native\libspeechmarkdown_rust.dylib" target="runtimes\osx-x64\native\" />
+    <file src="runtimes\osx-arm64\native\libspeechmarkdown_rust.dylib" target="runtimes\osx-arm64\native\" />
+  </files>
+</package>

@@ -155,6 +155,8 @@ pub unsafe extern "C" fn speechmarkdown_parse(input: *const c_char) -> *mut c_ch
     }
 }
 
+/// # Safety
+/// `input` must be a valid pointer to a null-terminated C string.
 #[no_mangle]
 pub unsafe extern "C" fn speechmarkdown_is_speech_markdown(input: *const c_char) -> bool {
     if input.is_null() {
@@ -169,6 +171,8 @@ pub unsafe extern "C" fn speechmarkdown_is_speech_markdown(input: *const c_char)
     SpeechMarkdownParser::is_speech_markdown(input_str)
 }
 
+/// # Safety
+/// `input` must be a valid pointer to a null-terminated C string.
 #[no_mangle]
 pub unsafe extern "C" fn speechmarkdown_validate(input: *const c_char) -> bool {
     if input.is_null() {

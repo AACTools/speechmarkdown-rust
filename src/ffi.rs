@@ -6,7 +6,7 @@ use crate::formatters::base::Platform;
 use crate::parser::SpeechMarkdownParser;
 
 thread_local! {
-    static LAST_ERROR: RefCell<Option<CString>> = RefCell::new(None);
+    static LAST_ERROR: RefCell<Option<CString>> = const { RefCell::new(None) };
 }
 
 fn set_last_error(msg: &str) {
@@ -24,7 +24,7 @@ fn parse_platform(platform: *const c_char) -> Option<Platform> {
         return None;
     }
     let platform_str = unsafe { CStr::from_ptr(platform) }.to_str().unwrap_or("");
-    match Platform::from_str(platform_str) {
+    match Platform::from_platform_str(platform_str) {
         Some(p) => Some(p),
         None => {
             set_last_error(&format!("unsupported platform: '{}'", platform_str));
@@ -43,8 +43,10 @@ fn to_c_string(s: String) -> *mut c_char {
     }
 }
 
+/// # Safety
+/// `input` and `platform` must be valid pointers to null-terminated C strings.
 #[no_mangle]
-pub extern "C" fn speechmarkdown_to_ssml(
+pub unsafe extern "C" fn speechmarkdown_to_ssml(
     input: *const c_char,
     platform: *const c_char,
 ) -> *mut c_char {
@@ -53,7 +55,7 @@ pub extern "C" fn speechmarkdown_to_ssml(
         return std::ptr::null_mut();
     }
 
-    let input_str = match unsafe { CStr::from_ptr(input) }.to_str() {
+    let input_str = match CStr::from_ptr(input).to_str() {
         Ok(s) => s,
         Err(_) => {
             set_last_error("input is not valid UTF-8");
@@ -75,14 +77,16 @@ pub extern "C" fn speechmarkdown_to_ssml(
     }
 }
 
+/// # Safety
+/// `input` must be a valid pointer to a null-terminated C string.
 #[no_mangle]
-pub extern "C" fn speechmarkdown_to_text(input: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn speechmarkdown_to_text(input: *const c_char) -> *mut c_char {
     if input.is_null() {
         set_last_error("input argument is null");
         return std::ptr::null_mut();
     }
 
-    let input_str = match unsafe { CStr::from_ptr(input) }.to_str() {
+    let input_str = match CStr::from_ptr(input).to_str() {
         Ok(s) => s,
         Err(_) => {
             set_last_error("input is not valid UTF-8");
@@ -99,12 +103,12 @@ pub extern "C" fn speechmarkdown_to_text(input: *const c_char) -> *mut c_char {
     }
 }
 
+/// # Safety
+/// `s` must be a valid pointer to a `CString` previously returned by this library, or null.
 #[no_mangle]
-pub extern "C" fn speechmarkdown_free(s: *mut c_char) {
+pub unsafe extern "C" fn speechmarkdown_free(s: *mut c_char) {
     if !s.is_null() {
-        unsafe {
-            drop(CString::from_raw(s));
-        }
+        drop(CString::from_raw(s));
     }
 }
 
@@ -119,14 +123,16 @@ pub extern "C" fn speechmarkdown_get_error() -> *mut c_char {
     })
 }
 
+/// # Safety
+/// `input` must be a valid pointer to a null-terminated C string.
 #[no_mangle]
-pub extern "C" fn speechmarkdown_parse(input: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn speechmarkdown_parse(input: *const c_char) -> *mut c_char {
     if input.is_null() {
         set_last_error("input argument is null");
         return std::ptr::null_mut();
     }
 
-    let input_str = match unsafe { CStr::from_ptr(input) }.to_str() {
+    let input_str = match CStr::from_ptr(input).to_str() {
         Ok(s) => s,
         Err(_) => {
             set_last_error("input is not valid UTF-8");

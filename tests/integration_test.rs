@@ -59,9 +59,8 @@ fn test_all_test_cases() {
                     let text_result = SpeechMarkdownParser::to_text(&input);
                     if text_result.is_err() {
                         all_checks_passed = false;
-                    } else {
-                        let actual_text = text_result.unwrap();
-                        if actual_text.trim() != normalize_line_endings(&expected_text.trim()) {
+                    } else if let Ok(actual_text) = text_result {
+                        if actual_text.trim() != normalize_line_endings(expected_text.trim()) {
                             all_checks_passed = false;
                         }
                     }
@@ -77,9 +76,8 @@ fn test_all_test_cases() {
                     let ssml_result = SpeechMarkdownParser::to_ssml(&input, Platform::AmazonAlexa);
                     if ssml_result.is_err() {
                         all_checks_passed = false;
-                    } else {
-                        let actual_ssml = ssml_result.unwrap();
-                        if actual_ssml.trim() != normalize_line_endings(&expected_ssml.trim()) {
+                    } else if let Ok(actual_ssml) = ssml_result {
+                        if actual_ssml.trim() != normalize_line_endings(expected_ssml.trim()) {
                             all_checks_passed = false;
                         }
                     }
@@ -96,9 +94,8 @@ fn test_all_test_cases() {
                         SpeechMarkdownParser::to_ssml(&input, Platform::GoogleAssistant);
                     if ssml_result.is_err() {
                         all_checks_passed = false;
-                    } else {
-                        let actual_ssml = ssml_result.unwrap();
-                        if actual_ssml.trim() != normalize_line_endings(&expected_ssml.trim()) {
+                    } else if let Ok(actual_ssml) = ssml_result {
+                        if actual_ssml.trim() != normalize_line_endings(expected_ssml.trim()) {
                             all_checks_passed = false;
                         }
                     }
@@ -165,10 +162,10 @@ fn run_single_test(test_name: &str) {
 
     let input = fs::read_to_string(&smd_file)
         .unwrap_or_else(|_| panic!("Failed to read test file: {:?}", smd_file))
-        .trim_end_matches(|c| c == '\r' || c == '\n')
+        .trim_end_matches(['\r', '\n'])
         .to_string();
 
-    let ast = SpeechMarkdownParser::parse(&input).expect("Parse failed");
+    let _ast = SpeechMarkdownParser::parse(&input).expect("Parse failed");
 
     // Test text output if it exists
     let text_file = test_dir.join(format!("{}.txt", test_name));
@@ -180,8 +177,7 @@ fn run_single_test(test_name: &str) {
 
         assert_eq!(
             actual_text.trim(),
-            normalize_line_endings(&expected_text.trim()),
-            "Text output mismatch"
+            normalize_line_endings(expected_text.trim()),
         );
     }
 
@@ -196,7 +192,7 @@ fn run_single_test(test_name: &str) {
 
         assert_eq!(
             actual_ssml.trim(),
-            normalize_line_endings(&expected_ssml.trim()),
+            normalize_line_endings(expected_ssml.trim()),
             "Alexa SSML output mismatch"
         );
     }

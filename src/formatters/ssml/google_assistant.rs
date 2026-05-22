@@ -2,7 +2,7 @@ use crate::ast::{AstNode, NodeType};
 use crate::error::Result;
 use crate::formatters::base::{Formatter, FormatterOptions};
 use crate::formatters::ssml::base::{
-    attrs_get, attrs_merge, format_attr_string_ordered, SsmlFormatterBase, TagAttrs, TagInfo,
+    attrs_merge, format_attr_string_ordered, SsmlFormatterBase, TagAttrs, TagInfo,
 };
 
 pub struct GoogleAssistantSsmlFormatter {
@@ -26,6 +26,7 @@ impl GoogleAssistantSsmlFormatter {
             }
             "excited" | "disappointed" => None,
             "voice" | "lang" => None,
+            "ipa" => None,
             "style" => {
                 if !value.is_empty() {
                     attributes.push(("name".to_string(), value.to_string()));
@@ -96,7 +97,7 @@ impl GoogleAssistantSsmlFormatter {
             return Ok(String::new());
         }
 
-        let section_tag_order = vec!["voice", "lang", "prosody", "emphasis"];
+        let section_tag_order = ["voice", "lang", "prosody", "emphasis"];
         tags.sort_by_key(|(tag_name, _)| {
             section_tag_order
                 .iter()
@@ -139,7 +140,7 @@ impl GoogleAssistantSsmlFormatter {
             }
         }
 
-        let section_tag_order = vec!["voice", "lang", "prosody", "emphasis"];
+        let section_tag_order = ["voice", "lang", "prosody", "emphasis"];
         tags.sort_by_key(|(tag_name, _)| {
             section_tag_order
                 .iter()
@@ -177,8 +178,9 @@ impl Formatter for GoogleAssistantSsmlFormatter {
                     let next_child = children_iter.next().unwrap();
                     section_content_raw.push_str(&self.format_google_node(next_child)?);
                 }
-                let section_content = if section_content_raw.starts_with('\n') {
-                    &section_content_raw[1..]
+                let section_content = if let Some(stripped) = section_content_raw.strip_prefix('\n')
+                {
+                    stripped
                 } else {
                     &section_content_raw
                 };

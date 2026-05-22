@@ -17,7 +17,7 @@ pub enum Platform {
 
 impl Platform {
     /// Parse platform from string
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn from_platform_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "amazon-alexa" | "alexa" => Some(Platform::AmazonAlexa),
             "google-assistant" | "google" => Some(Platform::GoogleAssistant),

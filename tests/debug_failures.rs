@@ -85,22 +85,22 @@ fn debug_all_remaining() {
     );
     for name in &failures {
         let (_, results) = debug_test(name);
-        let a = if results.get("alexa").map_or(true, |v| *v) {
+        let a = if results.get("alexa").is_none_or(|v| *v) {
             "PASS"
         } else {
             "FAIL"
         };
-        let g = if results.get("google").map_or(true, |v| *v) {
+        let g = if results.get("google").is_none_or(|v| *v) {
             "PASS"
         } else {
             "FAIL"
         };
-        let z = if results.get("azure").map_or(true, |v| *v) {
+        let z = if results.get("azure").is_none_or(|v| *v) {
             "PASS"
         } else {
             "FAIL"
         };
-        let t = if results.get("txt").map_or(true, |v| *v) {
+        let t = if results.get("txt").is_none_or(|v| *v) {
             "PASS"
         } else {
             "FAIL"

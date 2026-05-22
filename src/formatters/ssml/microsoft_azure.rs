@@ -158,14 +158,10 @@ impl MicrosoftAzureSsmlFormatter {
                 Some(("prosody".to_string(), attributes))
             }
             "number" | "cardinal" => Some(("say-as".to_string(), {
-                let mut attrs: TagAttrs = Vec::new();
-                attrs.push(("interpret-as".to_string(), "cardinal".to_string()));
-                attrs
+                vec![("interpret-as".to_string(), "cardinal".to_string())]
             })),
             "excited" | "disappointed" => Some(("mstts:express-as".to_string(), {
-                let mut attrs: TagAttrs = Vec::new();
-                attrs.push(("style".to_string(), key.to_lowercase()));
-                attrs
+                vec![("style".to_string(), key.to_lowercase())]
             })),
             "voice" => {
                 if value.is_empty() || value == "device" {
@@ -341,7 +337,7 @@ impl MicrosoftAzureSsmlFormatter {
                 let is_defaults = child
                     .attributes
                     .get("style")
-                    .map_or(false, |s| s == "defaults");
+                    .is_some_and(|s| s == "defaults");
 
                 let mut section_content_raw = String::new();
                 while let Some(next_child) = children_iter.peek() {

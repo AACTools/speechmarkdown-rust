@@ -1,7 +1,6 @@
 use crate::ast::{AstNode, NodeType};
 use crate::error::Result;
 use crate::formatters::base::{Formatter, FormatterOptions};
-use std::collections::HashMap;
 
 pub type TagAttrs = Vec<(String, String)>;
 pub type TagInfo = (String, TagAttrs);
@@ -29,32 +28,17 @@ pub fn attrs_get<'a>(attrs: &'a TagAttrs, key: &str) -> Option<&'a str> {
 
 pub struct SsmlFormatterBase {
     options: FormatterOptions,
-    modifier_mappings: HashMap<String, String>,
     tag_sort_order: Vec<String>,
 }
 
 impl SsmlFormatterBase {
     pub fn new(options: FormatterOptions) -> Self {
-        let modifier_mappings = Self::create_default_mappings();
         let tag_sort_order = Self::create_default_tag_order();
 
         Self {
             options,
-            modifier_mappings,
             tag_sort_order,
         }
-    }
-
-    fn create_default_mappings() -> HashMap<String, String> {
-        let mut mappings = HashMap::new();
-        mappings.insert("emphasis".to_string(), "emphasis".to_string());
-        mappings.insert("voice".to_string(), "voice".to_string());
-        mappings.insert("lang".to_string(), "lang".to_string());
-        mappings.insert("rate".to_string(), "prosody".to_string());
-        mappings.insert("pitch".to_string(), "prosody".to_string());
-        mappings.insert("volume".to_string(), "prosody".to_string());
-        mappings.insert("whisper".to_string(), "amazon:effect".to_string());
-        mappings
     }
 
     fn create_default_tag_order() -> Vec<String> {
@@ -365,7 +349,7 @@ impl SsmlFormatterBase {
             }
         }
 
-        let section_tag_order = vec!["voice", "lang", "prosody", "emphasis"];
+        let section_tag_order = ["voice", "lang", "prosody", "emphasis"];
         tags.sort_by_key(|(tag_name, _)| {
             section_tag_order
                 .iter()
@@ -423,7 +407,7 @@ impl SsmlFormatterBase {
             }
         }
 
-        let section_tag_order = vec!["voice", "lang", "prosody", "emphasis"];
+        let section_tag_order = ["voice", "lang", "prosody", "emphasis"];
         tags.sort_by_key(|(tag_name, _)| {
             section_tag_order
                 .iter()
@@ -568,13 +552,10 @@ impl SsmlFormatterBase {
 
         match key.to_lowercase().as_str() {
             "address" => Some(("say-as".to_string(), {
-                let mut attrs = Vec::new();
-                attrs.push(("interpret-as".to_string(), "address".to_string()));
-                attrs
+                vec![("interpret-as".to_string(), "address".to_string())]
             })),
             "date" => Some(("say-as".to_string(), {
-                let mut attrs = Vec::new();
-                attrs.push(("interpret-as".to_string(), "date".to_string()));
+                let mut attrs = vec![("interpret-as".to_string(), "date".to_string())];
                 if !value.is_empty() {
                     attrs.push(("format".to_string(), value.to_string()));
                 }
@@ -589,48 +570,31 @@ impl SsmlFormatterBase {
                 attrs
             })),
             "number" | "cardinal" => Some(("say-as".to_string(), {
-                let mut attrs = Vec::new();
-                attrs.push(("interpret-as".to_string(), "number".to_string()));
-                attrs
+                vec![("interpret-as".to_string(), "number".to_string())]
             })),
             "ordinal" => Some(("say-as".to_string(), {
-                let mut attrs = Vec::new();
-                attrs.push(("interpret-as".to_string(), "ordinal".to_string()));
-                attrs
+                vec![("interpret-as".to_string(), "ordinal".to_string())]
             })),
             "characters" | "chars" | "digits" | "drc" => Some(("say-as".to_string(), {
-                let mut attrs = Vec::new();
-                attrs.push(("interpret-as".to_string(), "characters".to_string()));
-                attrs
+                vec![("interpret-as".to_string(), "characters".to_string())]
             })),
             "fraction" => Some(("say-as".to_string(), {
-                let mut attrs = Vec::new();
-                attrs.push(("interpret-as".to_string(), "fraction".to_string()));
-                attrs
+                vec![("interpret-as".to_string(), "fraction".to_string())]
             })),
             "unit" => Some(("say-as".to_string(), {
-                let mut attrs = Vec::new();
-                attrs.push(("interpret-as".to_string(), "unit".to_string()));
-                attrs
+                vec![("interpret-as".to_string(), "unit".to_string())]
             })),
             "interjection" => Some(("say-as".to_string(), {
-                let mut attrs = Vec::new();
-                attrs.push(("interpret-as".to_string(), "interjection".to_string()));
-                attrs
+                vec![("interpret-as".to_string(), "interjection".to_string())]
             })),
             "expletive" | "bleep" => Some(("say-as".to_string(), {
-                let mut attrs = Vec::new();
-                attrs.push(("interpret-as".to_string(), "expletive".to_string()));
-                attrs
+                vec![("interpret-as".to_string(), "expletive".to_string())]
             })),
             "telephone" | "phone" => Some(("say-as".to_string(), {
-                let mut attrs = Vec::new();
-                attrs.push(("interpret-as".to_string(), "telephone".to_string()));
-                attrs
+                vec![("interpret-as".to_string(), "telephone".to_string())]
             })),
             "ipa" => Some(("phoneme".to_string(), {
-                let mut attrs = Vec::new();
-                attrs.push(("alphabet".to_string(), "ipa".to_string()));
+                let mut attrs = vec![("alphabet".to_string(), "ipa".to_string())];
                 if !value.is_empty() {
                     attrs.push(("ph".to_string(), value.to_string()));
                 }
@@ -685,25 +649,23 @@ impl SsmlFormatterBase {
                 Some(("emphasis".to_string(), attributes))
             }
             "whisper" => Some(("amazon:effect".to_string(), {
-                let mut attrs = Vec::new();
-                attrs.push(("name".to_string(), "whispered".to_string()));
-                attrs
+                vec![("name".to_string(), "whispered".to_string())]
             })),
             "excited" => {
                 let lower_val = value.to_lowercase();
                 if value.is_empty() {
                     Some(("amazon:emotion".to_string(), {
-                        let mut attrs = Vec::new();
-                        attrs.push(("name".to_string(), "excited".to_string()));
-                        attrs.push(("intensity".to_string(), "medium".to_string()));
-                        attrs
+                        vec![
+                            ("name".to_string(), "excited".to_string()),
+                            ("intensity".to_string(), "medium".to_string()),
+                        ]
                     }))
                 } else if matches!(lower_val.as_str(), "low" | "medium" | "high") {
                     Some(("amazon:emotion".to_string(), {
-                        let mut attrs = Vec::new();
-                        attrs.push(("name".to_string(), "excited".to_string()));
-                        attrs.push(("intensity".to_string(), lower_val));
-                        attrs
+                        vec![
+                            ("name".to_string(), "excited".to_string()),
+                            ("intensity".to_string(), lower_val),
+                        ]
                     }))
                 } else {
                     None
@@ -713,31 +675,27 @@ impl SsmlFormatterBase {
                 let lower_val = value.to_lowercase();
                 if value.is_empty() {
                     Some(("amazon:emotion".to_string(), {
-                        let mut attrs = Vec::new();
-                        attrs.push(("name".to_string(), "disappointed".to_string()));
-                        attrs.push(("intensity".to_string(), "medium".to_string()));
-                        attrs
+                        vec![
+                            ("name".to_string(), "disappointed".to_string()),
+                            ("intensity".to_string(), "medium".to_string()),
+                        ]
                     }))
                 } else if matches!(lower_val.as_str(), "low" | "medium" | "high") {
                     Some(("amazon:emotion".to_string(), {
-                        let mut attrs = Vec::new();
-                        attrs.push(("name".to_string(), "disappointed".to_string()));
-                        attrs.push(("intensity".to_string(), lower_val));
-                        attrs
+                        vec![
+                            ("name".to_string(), "disappointed".to_string()),
+                            ("intensity".to_string(), lower_val),
+                        ]
                     }))
                 } else {
                     None
                 }
             }
             "dj" => Some(("amazon:domain".to_string(), {
-                let mut attrs = Vec::new();
-                attrs.push(("name".to_string(), "music".to_string()));
-                attrs
+                vec![("name".to_string(), "music".to_string())]
             })),
             "newscaster" => Some(("amazon:domain".to_string(), {
-                let mut attrs = Vec::new();
-                attrs.push(("name".to_string(), "news".to_string()));
-                attrs
+                vec![("name".to_string(), "news".to_string())]
             })),
             _ => None,
         }
@@ -789,7 +747,7 @@ pub fn format_attr_string_ordered(tag_name: &str, attributes: &TagAttrs) -> Stri
         "amazon:domain" => vec!["name"],
         "mstts:express-as" => vec!["style"],
         "sub" => vec!["alias"],
-        "prosody" => vec!["rate", "pitch", "volume"],
+        "prosody" => vec!["volume", "pitch", "rate"],
         "google:style" => vec![],
         _ => vec![],
     };

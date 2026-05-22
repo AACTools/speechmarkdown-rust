@@ -70,8 +70,8 @@ impl SpeechMarkdownParser {
                     flush_text(&mut document, &mut current_text);
                     let (bracket_content, found) = Self::read_until(&mut chars, ']');
                     if found {
-                        if bracket_content.starts_with("break:") {
-                            let break_value = Self::strip_quotes(bracket_content[6..].trim());
+                        if let Some(rest) = bracket_content.strip_prefix("break:") {
+                            let break_value = Self::strip_quotes(rest.trim());
                             if Self::is_time_break(break_value) {
                                 document = document.add_child(AstNode::new(
                                     NodeType::ShortBreak,
@@ -83,8 +83,8 @@ impl SpeechMarkdownParser {
                                 node = node.with_attribute("strength", break_value);
                                 document = document.add_child(node);
                             }
-                        } else if bracket_content.starts_with("mark:") {
-                            let mark_value = Self::strip_quotes(bracket_content[5..].trim());
+                        } else if let Some(rest) = bracket_content.strip_prefix("mark:") {
+                            let mark_value = Self::strip_quotes(rest.trim());
                             document = document
                                 .add_child(AstNode::new(NodeType::Mark, mark_value.to_string()));
                         } else if Self::is_time_break(&bracket_content) {
@@ -153,7 +153,7 @@ impl SpeechMarkdownParser {
                             }
                             if next_c == '-' {
                                 let next_is_boundary =
-                                    chars.peek().map_or(true, |c| c.is_whitespace());
+                                    chars.peek().is_none_or(|c| c.is_whitespace());
                                 if next_is_boundary {
                                     found_end = true;
                                     break;
@@ -469,23 +469,6 @@ impl SpeechMarkdownParser {
     }
 
     fn read_until(chars: &mut std::iter::Peekable<std::str::Chars>, end: char) -> (String, bool) {
-        let mut content = String::new();
-        let mut found = false;
-        while let Some(&next_c) = chars.peek() {
-            chars.next();
-            if next_c == end {
-                found = true;
-                break;
-            }
-            content.push(next_c);
-        }
-        (content, found)
-    }
-
-    fn read_until_unescaped(
-        chars: &mut std::iter::Peekable<std::str::Chars>,
-        end: char,
-    ) -> (String, bool) {
         let mut content = String::new();
         let mut found = false;
         while let Some(&next_c) = chars.peek() {

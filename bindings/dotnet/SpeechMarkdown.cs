@@ -38,6 +38,9 @@ namespace SpeechMarkdown
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr speechmarkdown_to_smd(IntPtr input);
 
+        [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr speechmarkdown_supported_ssml(IntPtr platform);
+
         public SpeechMarkdownParser()
         {
         }
@@ -193,6 +196,33 @@ namespace SpeechMarkdown
                 finally
                 {
                     Marshal.FreeHGlobal(inputPtr);
+                }
+            }
+        }
+
+        public string SupportedSsml(string platform)
+        {
+            if (platform == null) throw new ArgumentNullException(nameof(platform));
+
+            lock (_lock)
+            {
+                IntPtr platformPtr = MarshalUtf8(platform);
+
+                try
+                {
+                    IntPtr resultPtr = speechmarkdown_supported_ssml(platformPtr);
+
+                    if (resultPtr == IntPtr.Zero)
+                    {
+                        string error = GetAndFreeError();
+                        throw new SpeechMarkdownException(error ?? "Unknown error getting supported SSML");
+                    }
+
+                    return PtrToStringAndFree(resultPtr);
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(platformPtr);
                 }
             }
         }

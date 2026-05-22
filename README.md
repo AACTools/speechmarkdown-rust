@@ -37,6 +37,7 @@ All bindings expose the same core methods:
 | `parse(input)` | `string` (JSON) | Parse SpeechMarkdown and return the AST as JSON |
 | `is_speech_markdown(input)` | `bool` | Check if a string contains SpeechMarkdown syntax |
 | `validate(input)` | `bool` | Validate that SpeechMarkdown parses without errors |
+| `supported_ssml(platform)` | `string` (JSON) | Get supported SSML elements for a platform |
 
 ## Usage
 

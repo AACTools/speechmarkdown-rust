@@ -1,4 +1,5 @@
 use crate::ast::{AstNode, NodeType};
+use crate::capabilities::PlatformCapabilities;
 use crate::error::Result;
 use crate::formatters::base::{FormatterOptions, Platform};
 use crate::formatters::{create_formatter, Formatter, TextFormatter};
@@ -33,6 +34,11 @@ impl SpeechMarkdownParser {
     /// Convert SSML to SpeechMarkdown (best-effort, lossy for unsupported elements)
     pub fn to_smd(ssml: &str) -> Result<String> {
         ssml_to_smd::ssml_to_smd(ssml)
+    }
+
+    /// Get supported SSML elements for a platform
+    pub fn supported_ssml(platform: Platform) -> PlatformCapabilities {
+        crate::capabilities::get_supported_ssml(platform)
     }
 
     /// Check if a string contains SpeechMarkdown syntax

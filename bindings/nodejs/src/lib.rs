@@ -45,3 +45,10 @@ pub fn validate(input: String) -> Result<bool> {
 pub fn to_smd(ssml: String) -> Result<String> {
     SpeechMarkdownParser::to_smd(&ssml).map_err(|e| Error::from_reason(e.to_string()))
 }
+
+#[napi]
+pub fn supported_ssml(platform: String) -> Result<String> {
+    let p = parse_platform(&platform)?;
+    let caps = SpeechMarkdownParser::supported_ssml(p);
+    serde_json::to_string(&caps).map_err(|e| Error::from_reason(e.to_string()))
+}

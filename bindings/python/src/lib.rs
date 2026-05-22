@@ -50,6 +50,14 @@ fn to_smd(ssml: &str) -> PyResult<String> {
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
 }
 
+#[pyfunction]
+fn supported_ssml(platform: &str) -> PyResult<String> {
+    let p = parse_platform(platform)?;
+    let caps = SpeechMarkdownParser::supported_ssml(p);
+    serde_json::to_string(&caps)
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+}
+
 #[pymodule]
 fn speechmarkdown(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(to_ssml, m)?)?;
@@ -58,5 +66,6 @@ fn speechmarkdown(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(is_speech_markdown, m)?)?;
     m.add_function(wrap_pyfunction!(validate, m)?)?;
     m.add_function(wrap_pyfunction!(to_smd, m)?)?;
+    m.add_function(wrap_pyfunction!(supported_ssml, m)?)?;
     Ok(())
 }

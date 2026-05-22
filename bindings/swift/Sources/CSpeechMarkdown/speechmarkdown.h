@@ -42,6 +42,11 @@ bool speechmarkdown_validate(const char* input);
 //          Caller must free with speechmarkdown_free().
 const char* speechmarkdown_to_smd(const char* input);
 
+// Get supported SSML elements for a platform as JSON.
+// Returns: allocated JSON string with capabilities, or NULL on error.
+//          Caller must free with speechmarkdown_free().
+const char* speechmarkdown_supported_ssml(const char* platform);
+
 #ifdef __cplusplus
 }
 #endif

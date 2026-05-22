@@ -222,3 +222,38 @@ pub unsafe extern "C" fn speechmarkdown_to_smd(input: *const c_char) -> *mut c_c
         }
     }
 }
+
+/// # Safety
+/// `platform` must be a valid pointer to a null-terminated C string.
+#[no_mangle]
+pub unsafe extern "C" fn speechmarkdown_supported_ssml(platform: *const c_char) -> *mut c_char {
+    if platform.is_null() {
+        set_last_error("platform argument is null");
+        return std::ptr::null_mut();
+    }
+
+    let platform_str = match CStr::from_ptr(platform).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("platform is not valid UTF-8");
+            return std::ptr::null_mut();
+        }
+    };
+
+    let platform_val = match Platform::from_platform_str(platform_str) {
+        Some(p) => p,
+        None => {
+            set_last_error(&format!("unsupported platform: '{}'", platform_str));
+            return std::ptr::null_mut();
+        }
+    };
+
+    let caps = SpeechMarkdownParser::supported_ssml(platform_val);
+    match serde_json::to_string(&caps) {
+        Ok(json) => to_c_string(json),
+        Err(e) => {
+            set_last_error(&format!("JSON serialization error: {}", e));
+            std::ptr::null_mut()
+        }
+    }
+}

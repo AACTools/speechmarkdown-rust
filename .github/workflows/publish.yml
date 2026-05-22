@@ -26,6 +26,7 @@ jobs:
           sed -i "s/^version = \".*\"/version = \"$VERSION\"/" bindings/nodejs/Cargo.toml
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" bindings/nodejs/package.json
           sed -i "s/^version = \".*\"/version = \"$VERSION\"/" bindings/python/pyproject.toml
+          sed -i "s/<version>.*<\/version>/<version>$VERSION<\/version>/" bindings/dotnet/SpeechMarkdown.nuspec
       - uses: actions/upload-artifact@v4
         with:
           name: version-sync
@@ -35,6 +36,7 @@ jobs:
             bindings/python/pyproject.toml
             bindings/nodejs/Cargo.toml
             bindings/nodejs/package.json
+            bindings/dotnet/SpeechMarkdown.nuspec
 
   test:
     name: Test
@@ -272,8 +274,6 @@ jobs:
       - name: Collect .node binaries
         run: find ${{ github.workspace }}/npm-artifacts -name '*.node' -exec cp {} . \;
       - run: npm install @napi-rs/cli
-      - name: Test
-        run: node test.js
       - name: Publish
         run: npm publish --provenance --access public
 
@@ -289,6 +289,10 @@ jobs:
         working-directory: bindings/dotnet
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: version-sync
+          path: .
       - uses: actions/download-artifact@v4
         with:
           path: ${{ github.workspace }}/artifacts
@@ -319,4 +323,7 @@ jobs:
         with:
           user: ${{ secrets.NUGET_USER }}
       - name: Publish
-        run: dotnet nuget push output/*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+        shell: pwsh
+        run: |
+          $pkg = Get-ChildItem output/*.nupkg | Select-Object -First 1
+          dotnet nuget push $pkg.FullName --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json

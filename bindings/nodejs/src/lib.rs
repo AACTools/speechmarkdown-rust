@@ -40,3 +40,8 @@ pub fn validate(input: String) -> Result<bool> {
         Err(e) => Err(Error::from_reason(e.to_string())),
     }
 }
+
+#[napi]
+pub fn to_smd(ssml: String) -> Result<String> {
+    SpeechMarkdownParser::to_smd(&ssml).map_err(|e| Error::from_reason(e.to_string()))
+}

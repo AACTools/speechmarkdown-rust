@@ -32,6 +32,7 @@ All bindings expose the same core methods:
 |--------|---------|-------------|
 | `to_ssml(input, platform)` | `string` | Convert SpeechMarkdown to SSML for the given platform |
 | `to_text(input)` | `string` | Convert SpeechMarkdown to plain text (strips all markup) |
+| `to_smd(ssml)` | `string` | Convert SSML to SpeechMarkdown (best-effort, lossy for unsupported elements) |
 | `parse(input)` | `string` (JSON) | Parse SpeechMarkdown and return the AST as JSON |
 | `is_speech_markdown(input)` | `bool` | Check if a string contains SpeechMarkdown syntax |
 | `validate(input)` | `bool` | Validate that SpeechMarkdown parses without errors |
@@ -62,6 +63,10 @@ if SpeechMarkdownParser::is_speech_markdown(&input) {
 
 // Validate input
 SpeechMarkdownParser::validate(&input)?;
+
+// Convert SSML back to SpeechMarkdown (best-effort)
+let smd = SpeechMarkdownParser::to_smd(r#"<speak><emphasis level="strong">word</emphasis></speak>"#)?;
+// Returns: ++word++
 ```
 
 ### Python
@@ -77,6 +82,10 @@ is_smd = is_speech_markdown('Hello (world)[emphasis:"strong"]')  # True
 is_smd = is_speech_markdown('Hello world')                       # False
 
 validate('Hello (world)[emphasis:"strong"]')  # raises ValueError if invalid
+
+# Convert SSML to SpeechMarkdown (best-effort)
+smd = to_smd('<speak><emphasis level="strong">word</emphasis></speak>')
+# Returns: ++word++
 ```
 
 ### Node.js
@@ -92,6 +101,10 @@ is_speech_markdown('Hello (world)[emphasis:"strong"]')  // true
 is_speech_markdown('Hello world')                       // false
 
 validate('Hello (world)[emphasis:"strong"]')  // throws if invalid
+
+// Convert SSML to SpeechMarkdown (best-effort)
+const smd = to_smd('<speak><emphasis level="strong">word</emphasis></speak>')
+// Returns: ++word++
 ```
 
 ### .NET (C#)
@@ -107,6 +120,10 @@ string json = parser.ParseToJson("Hello world");
 
 bool isSmd = parser.IsSpeechMarkdown("Hello (world)[emphasis:\"strong\"]"); // true
 parser.Validate("Hello (world)[emphasis:\"strong\"]"); // throws on invalid
+
+// Convert SSML to SpeechMarkdown (best-effort)
+string smd = parser.ToSmd("<speak><emphasis level=\"strong\">word</emphasis></speak>");
+// Returns: ++word++
 ```
 
 ### Swift
@@ -122,6 +139,10 @@ let json = try parser.parseToJson(input: "Hello world")
 
 let isSmd = parser.isSpeechMarkdown(input: "Hello (world)[emphasis:\"strong\"]") // true
 try parser.validate(input: "Hello (world)[emphasis:\"strong\"]") // throws on invalid
+
+// Convert SSML to SpeechMarkdown (best-effort)
+let smd = try parser.toSmd(ssml: "<speak><emphasis level=\"strong\">word</emphasis></speak>")
+// Returns: ++word++
 ```
 
 ### C API
@@ -146,6 +167,10 @@ bool is_smd = speechmarkdown_is_speech_markdown("Hello (world)[emphasis:\"strong
 
 // Validate
 bool valid = speechmarkdown_validate("Hello (world)[emphasis:\"strong\"]");
+
+// Convert SSML to SpeechMarkdown (best-effort)
+const char* smd = speechmarkdown_to_smd("<speak><emphasis level=\"strong\">word</emphasis></speak>");
+speechmarkdown_free((char*)smd);
 
 // Get last error (thread-local)
 const char* err = speechmarkdown_get_error();

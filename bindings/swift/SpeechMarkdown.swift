@@ -67,6 +67,21 @@ public class SpeechMarkdownParser {
             return result!
         }
     }
+
+    public func toSmd(ssml: String) throws -> String {
+        return try SpeechMarkdownParser.lock.withLock {
+            let result: String? = try ssml.withCString { inputPtr in
+                let ptr = speechmarkdown_to_smd(inputPtr)
+                if ptr == nil {
+                    throw SpeechMarkdownError.fromLastError(context: "toSmd")
+                }
+                let str = String(cString: ptr!)
+                speechmarkdown_free(ptr)
+                return str
+            }
+            return result!
+        }
+    }
 }
 
 public enum SpeechMarkdownError: Error, LocalizedError {

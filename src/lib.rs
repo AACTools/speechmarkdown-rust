@@ -5,6 +5,7 @@ pub mod error;
 pub mod ffi;
 pub mod formatters;
 pub mod parser;
+pub mod ssml_to_smd;
 
 // Re-export main types for convenience
 pub use ast::{AstNode, NodeType, Position};

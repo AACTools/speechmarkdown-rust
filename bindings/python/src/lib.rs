@@ -44,6 +44,12 @@ fn validate(input: &str) -> PyResult<bool> {
     }
 }
 
+#[pyfunction]
+fn to_smd(ssml: &str) -> PyResult<String> {
+    SpeechMarkdownParser::to_smd(ssml)
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+}
+
 #[pymodule]
 fn speechmarkdown(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(to_ssml, m)?)?;
@@ -51,5 +57,6 @@ fn speechmarkdown(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse, m)?)?;
     m.add_function(wrap_pyfunction!(is_speech_markdown, m)?)?;
     m.add_function(wrap_pyfunction!(validate, m)?)?;
+    m.add_function(wrap_pyfunction!(to_smd, m)?)?;
     Ok(())
 }

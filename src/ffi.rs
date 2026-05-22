@@ -196,3 +196,29 @@ pub unsafe extern "C" fn speechmarkdown_validate(input: *const c_char) -> bool {
         }
     }
 }
+
+/// # Safety
+/// `input` must be a valid pointer to a null-terminated C string.
+#[no_mangle]
+pub unsafe extern "C" fn speechmarkdown_to_smd(input: *const c_char) -> *mut c_char {
+    if input.is_null() {
+        set_last_error("input argument is null");
+        return std::ptr::null_mut();
+    }
+
+    let input_str = match CStr::from_ptr(input).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("input is not valid UTF-8");
+            return std::ptr::null_mut();
+        }
+    };
+
+    match SpeechMarkdownParser::to_smd(input_str) {
+        Ok(smd) => to_c_string(smd),
+        Err(e) => {
+            set_last_error(&e.to_string());
+            std::ptr::null_mut()
+        }
+    }
+}

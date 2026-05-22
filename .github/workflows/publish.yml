@@ -163,21 +163,20 @@ jobs:
           working-directory: bindings/python
           sccache: "false"
           manylinux: auto
-      - name: Fix dist permissions
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: chmod -R 777 bindings/python/dist || true
       - name: Build sdist
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
-          args: --out dist
+          args: --out dist-sdist
           working-directory: bindings/python
           sccache: "false"
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.target }}
-          path: bindings/python/dist/*
+          path: |
+            bindings/python/dist/*
+            bindings/python/dist-sdist/*
 
   publish-pypi:
     name: PyPI

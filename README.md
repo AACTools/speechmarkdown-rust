@@ -123,4 +123,4 @@ text = to_text('Hello (world)[emphasis:"strong"]')
 ast = parse('Hello world')  # returns dict
 ```
 
-Available on [PyPI](https://pypi.org/project/speechmarkdown/) as `speechmarkdown`.
+Available on [PyPI](https://pypi.org/project/speechmarkdown-rust/) as `speechmarkdown-rust`.

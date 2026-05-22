@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-
 use crate::ast::{AstNode, NodeType};
 use crate::error::Result;
 use crate::formatters::base::{Formatter, FormatterOptions};
-use crate::formatters::ssml::base::SsmlFormatterBase;
+use crate::formatters::ssml::base::{
+    attrs_merge, format_attr_string_ordered, SsmlFormatterBase, TagAttrs, TagInfo,
+};
 
 const AZURE_EXPRESS_AS_STYLES: &[&str] = &[
     "angry",
@@ -148,27 +148,23 @@ impl MicrosoftAzureSsmlFormatter {
         }
     }
 
-    fn azure_attribute_to_tag(
-        &self,
-        key: &str,
-        value: &str,
-    ) -> Option<(String, HashMap<String, String>)> {
-        let mut attributes = HashMap::new();
+    fn azure_attribute_to_tag(&self, key: &str, value: &str) -> Option<TagInfo> {
+        let mut attributes: TagAttrs = Vec::new();
         match key.to_lowercase().as_str() {
             "emphasis" => None,
             "whisper" => {
-                attributes.insert("volume".to_string(), "x-soft".to_string());
-                attributes.insert("rate".to_string(), "slow".to_string());
+                attributes.push(("volume".to_string(), "x-soft".to_string()));
+                attributes.push(("rate".to_string(), "slow".to_string()));
                 Some(("prosody".to_string(), attributes))
             }
             "number" | "cardinal" => Some(("say-as".to_string(), {
-                let mut attrs = HashMap::new();
-                attrs.insert("interpret-as".to_string(), "cardinal".to_string());
+                let mut attrs: TagAttrs = Vec::new();
+                attrs.push(("interpret-as".to_string(), "cardinal".to_string()));
                 attrs
             })),
             "excited" | "disappointed" => Some(("mstts:express-as".to_string(), {
-                let mut attrs = HashMap::new();
-                attrs.insert("style".to_string(), key.to_lowercase());
+                let mut attrs: TagAttrs = Vec::new();
+                attrs.push(("style".to_string(), key.to_lowercase()));
                 attrs
             })),
             "voice" => {
@@ -176,7 +172,7 @@ impl MicrosoftAzureSsmlFormatter {
                     return None;
                 }
                 let neural_name = azure_voice_name(value);
-                attributes.insert("name".to_string(), neural_name);
+                attributes.push(("name".to_string(), neural_name));
                 Some(("voice".to_string(), attributes))
             }
             _ => self.base.attribute_to_tag(key, value),
@@ -184,8 +180,8 @@ impl MicrosoftAzureSsmlFormatter {
     }
 
     fn format_azure_text_modifier(&self, node: &AstNode) -> Result<String> {
-        let mut tags: Vec<(String, HashMap<String, String>)> = Vec::new();
-        let mut last_say_as: Option<(String, HashMap<String, String>)> = None;
+        let mut tags: Vec<TagInfo> = Vec::new();
+        let mut last_say_as: Option<TagInfo> = None;
 
         for key in &node.attribute_keys {
             let value = match node.attributes.get(key) {
@@ -196,9 +192,7 @@ impl MicrosoftAzureSsmlFormatter {
                 let tag_name = tag_info.0.clone();
                 if tag_name == "prosody" {
                     if let Some(existing) = tags.iter_mut().find(|(name, _)| name == "prosody") {
-                        for (k, v) in tag_info.1 {
-                            existing.1.insert(k, v);
-                        }
+                        attrs_merge(&mut existing.1, tag_info.1);
                         continue;
                     }
                 }
@@ -230,7 +224,7 @@ impl MicrosoftAzureSsmlFormatter {
     }
 
     fn format_azure_section(&self, node: &AstNode) -> Result<String> {
-        let mut tags: Vec<(String, HashMap<String, String>)> = Vec::new();
+        let mut tags: Vec<TagInfo> = Vec::new();
 
         if let Some(style) = node.attributes.get("style") {
             if style != "defaults" {
@@ -252,9 +246,7 @@ impl MicrosoftAzureSsmlFormatter {
                 let tag_name = tag_info.0.clone();
                 if tag_name == "prosody" {
                     if let Some(existing) = tags.iter_mut().find(|(name, _)| name == "prosody") {
-                        for (k, v) in tag_info.1 {
-                            existing.1.insert(k, v);
-                        }
+                        attrs_merge(&mut existing.1, tag_info.1);
                         continue;
                     }
                 }
@@ -268,7 +260,7 @@ impl MicrosoftAzureSsmlFormatter {
 
         let mut result = String::new();
         for (i, (tag_name, attrs)) in tags.iter().enumerate() {
-            let attr_string = self.base.format_attr_string(tag_name, attrs);
+            let attr_string = format_attr_string_ordered(tag_name, attrs);
             if i > 0 {
                 result.push('\n');
             }
@@ -282,7 +274,7 @@ impl MicrosoftAzureSsmlFormatter {
     }
 
     fn format_azure_section_close(&self, node: &AstNode) -> Result<String> {
-        let mut tags: Vec<(String, HashMap<String, String>)> = Vec::new();
+        let mut tags: Vec<TagInfo> = Vec::new();
 
         if let Some(style) = node.attributes.get("style") {
             if style != "defaults" {
@@ -304,9 +296,7 @@ impl MicrosoftAzureSsmlFormatter {
                 let tag_name = tag_info.0.clone();
                 if tag_name == "prosody" {
                     if let Some(existing) = tags.iter_mut().find(|(name, _)| name == "prosody") {
-                        for (k, v) in tag_info.1 {
-                            existing.1.insert(k, v);
-                        }
+                        attrs_merge(&mut existing.1, tag_info.1);
                         continue;
                     }
                 }

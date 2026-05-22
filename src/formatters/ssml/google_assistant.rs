@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-
 use crate::ast::{AstNode, NodeType};
 use crate::error::Result;
 use crate::formatters::base::{Formatter, FormatterOptions};
-use crate::formatters::ssml::base::SsmlFormatterBase;
+use crate::formatters::ssml::base::{
+    attrs_get, attrs_merge, format_attr_string_ordered, SsmlFormatterBase, TagAttrs, TagInfo,
+};
 
 pub struct GoogleAssistantSsmlFormatter {
     base: SsmlFormatterBase,
@@ -16,23 +16,19 @@ impl GoogleAssistantSsmlFormatter {
         Self { base, options }
     }
 
-    fn google_attribute_to_tag(
-        &self,
-        key: &str,
-        value: &str,
-    ) -> Option<(String, HashMap<String, String>)> {
-        let mut attributes = HashMap::new();
+    fn google_attribute_to_tag(&self, key: &str, value: &str) -> Option<TagInfo> {
+        let mut attributes: TagAttrs = Vec::new();
         match key.to_lowercase().as_str() {
             "whisper" => {
-                attributes.insert("volume".to_string(), "x-soft".to_string());
-                attributes.insert("rate".to_string(), "slow".to_string());
+                attributes.push(("volume".to_string(), "x-soft".to_string()));
+                attributes.push(("rate".to_string(), "slow".to_string()));
                 Some(("prosody".to_string(), attributes))
             }
             "excited" | "disappointed" => None,
             "voice" | "lang" => None,
             "style" => {
                 if !value.is_empty() {
-                    attributes.insert("name".to_string(), value.to_string());
+                    attributes.push(("name".to_string(), value.to_string()));
                 }
                 Some(("google:style".to_string(), attributes))
             }
@@ -41,8 +37,8 @@ impl GoogleAssistantSsmlFormatter {
     }
 
     fn format_google_text_modifier(&self, node: &AstNode) -> Result<String> {
-        let mut tags: Vec<(String, HashMap<String, String>)> = Vec::new();
-        let mut last_say_as: Option<(String, HashMap<String, String>)> = None;
+        let mut tags: Vec<TagInfo> = Vec::new();
+        let mut last_say_as: Option<TagInfo> = None;
 
         for key in &node.attribute_keys {
             let value = match node.attributes.get(key) {
@@ -53,9 +49,7 @@ impl GoogleAssistantSsmlFormatter {
                 let tag_name = tag_info.0.clone();
                 if tag_name == "prosody" {
                     if let Some(existing) = tags.iter_mut().find(|(name, _)| name == "prosody") {
-                        for (k, v) in tag_info.1 {
-                            existing.1.insert(k, v);
-                        }
+                        attrs_merge(&mut existing.1, tag_info.1);
                         continue;
                     }
                 }
@@ -79,7 +73,7 @@ impl GoogleAssistantSsmlFormatter {
     }
 
     fn format_google_section(&self, node: &AstNode) -> Result<String> {
-        let mut tags: Vec<(String, HashMap<String, String>)> = Vec::new();
+        let mut tags: Vec<TagInfo> = Vec::new();
 
         for key in &node.attribute_keys {
             let value = match node.attributes.get(key) {
@@ -90,9 +84,7 @@ impl GoogleAssistantSsmlFormatter {
                 let tag_name = tag_info.0.clone();
                 if tag_name == "prosody" {
                     if let Some(existing) = tags.iter_mut().find(|(name, _)| name == "prosody") {
-                        for (k, v) in tag_info.1 {
-                            existing.1.insert(k, v);
-                        }
+                        attrs_merge(&mut existing.1, tag_info.1);
                         continue;
                     }
                 }
@@ -114,7 +106,7 @@ impl GoogleAssistantSsmlFormatter {
 
         let mut result = String::new();
         for (i, (tag_name, attrs)) in tags.iter().enumerate() {
-            let attr_string = self.base.format_attr_string(tag_name, attrs);
+            let attr_string = format_attr_string_ordered(tag_name, attrs);
             if i > 0 {
                 result.push('\n');
             }
@@ -128,7 +120,7 @@ impl GoogleAssistantSsmlFormatter {
     }
 
     fn format_google_section_close(&self, node: &AstNode) -> Result<String> {
-        let mut tags: Vec<(String, HashMap<String, String>)> = Vec::new();
+        let mut tags: Vec<TagInfo> = Vec::new();
 
         for key in &node.attribute_keys {
             let value = match node.attributes.get(key) {
@@ -139,9 +131,7 @@ impl GoogleAssistantSsmlFormatter {
                 let tag_name = tag_info.0.clone();
                 if tag_name == "prosody" {
                     if let Some(existing) = tags.iter_mut().find(|(name, _)| name == "prosody") {
-                        for (k, v) in tag_info.1 {
-                            existing.1.insert(k, v);
-                        }
+                        attrs_merge(&mut existing.1, tag_info.1);
                         continue;
                     }
                 }

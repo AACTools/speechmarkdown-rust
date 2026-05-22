@@ -747,7 +747,7 @@ pub fn format_attr_string_ordered(tag_name: &str, attributes: &TagAttrs) -> Stri
         "amazon:domain" => vec!["name"],
         "mstts:express-as" => vec!["style"],
         "sub" => vec!["alias"],
-        "prosody" => vec!["volume", "pitch", "rate"],
+        "prosody" => vec![],
         "google:style" => vec![],
         _ => vec![],
     };

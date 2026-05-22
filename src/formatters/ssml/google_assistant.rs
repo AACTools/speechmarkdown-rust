@@ -40,12 +40,21 @@ impl GoogleAssistantSsmlFormatter {
     fn format_google_text_modifier(&self, node: &AstNode) -> Result<String> {
         let mut tags: Vec<TagInfo> = Vec::new();
         let mut last_say_as: Option<TagInfo> = None;
+        let mut has_ipa = false;
+        let mut non_ipa_count = 0;
 
         for key in &node.attribute_keys {
             let value = match node.attributes.get(key) {
                 Some(v) => v,
                 None => continue,
             };
+
+            if key.to_lowercase() == "ipa" {
+                has_ipa = true;
+            } else {
+                non_ipa_count += 1;
+            }
+
             if let Some(tag_info) = self.google_attribute_to_tag(key, value) {
                 let tag_name = tag_info.0.clone();
                 if tag_name == "prosody" {
@@ -59,6 +68,19 @@ impl GoogleAssistantSsmlFormatter {
                     continue;
                 }
                 tags.push(tag_info);
+            }
+        }
+
+        if has_ipa && non_ipa_count == 0 {
+            return Ok(node.text.clone());
+        }
+
+        if has_ipa {
+            if let Some(ipa_tag) = self
+                .base
+                .attribute_to_tag("ipa", node.attributes.get("ipa").unwrap_or(&String::new()))
+            {
+                tags.push(ipa_tag);
             }
         }
 

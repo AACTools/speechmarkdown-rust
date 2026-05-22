@@ -24,6 +24,7 @@ jobs:
     name: Build native (${{ matrix.target }})
     needs: test
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-pc-windows-msvc
@@ -55,6 +56,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
+      - name: Configure aarch64-linux linker
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
       - run: cargo build --release --target ${{ matrix.target }}
       - uses: actions/upload-artifact@v4
         with:
@@ -79,6 +83,7 @@ jobs:
     needs: test
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -102,7 +107,7 @@ jobs:
           targets: ${{ matrix.target }}
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.13"
       - name: Build wheel
         uses: PyO3/maturin-action@v1
         with:
@@ -138,9 +143,60 @@ jobs:
           merge-multiple: true
       - uses: pypa/gh-action-pypi-publish@release/v1
 
+  build-npm:
+    name: Build npm (${{ matrix.target }})
+    needs: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: bindings/nodejs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install cross-compilation tools (Linux aarch64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+      - name: Install musl tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - run: npm install @napi-rs/cli
+      - run: npx napi build --platform --release --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-${{ matrix.target }}
+          path: bindings/nodejs/*.node
+
   publish-npm:
     name: npm
-    needs: test
+    needs: build-npm
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -150,32 +206,30 @@ jobs:
         working-directory: bindings/nodejs
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
+      - uses: actions/download-artifact@v4
+        with:
+          path: npm-artifacts
+          pattern: npm-*
+          merge-multiple: true
+      - name: Collect .node binaries
+        run: find ../npm-artifacts -name '*.node' -exec cp {} . \;
       - run: npm install @napi-rs/cli
-      - name: Build all platform binaries
-        run: |
-          npx napi build --platform --release --target x86_64-pc-windows-msvc
-          npx napi build --platform --release --target x86_64-apple-darwin
-          npx napi build --platform --release --target aarch64-apple-darwin
-          npx napi build --platform --release --target x86_64-unknown-linux-gnu
-          npx napi build --platform --release --target aarch64-unknown-linux-gnu
-          npx napi build --platform --release --target x86_64-unknown-linux-musl
-          npx napi build --platform --release --target aarch64-unknown-linux-musl
       - name: Test
         run: node test.js
-      - name: Publish with provenance
+      - name: Publish
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-nuget:
     name: NuGet
     needs: [test, build-native]
     runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write
     defaults:
       run:
         working-directory: bindings/dotnet
@@ -204,5 +258,10 @@ jobs:
           }
       - name: Pack
         run: dotnet pack SpeechMarkdown.nuspec -o output
+      - name: NuGet login
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: ${{ secrets.NUGET_USER }}
       - name: Publish
-        run: dotnet nuget push output/*.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }}
+        run: dotnet nuget push output/*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json

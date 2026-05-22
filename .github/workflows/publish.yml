@@ -277,7 +277,7 @@ jobs:
         run: find ${{ github.workspace }}/npm-artifacts -name '*.node' -exec cp {} . \;
       - run: npm install @napi-rs/cli
       - name: Publish
-        run: npm publish --provenance --access public
+        run: npm publish --provenance --access public --ignore-scripts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

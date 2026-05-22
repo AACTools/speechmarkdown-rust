@@ -18,6 +18,9 @@ pub struct AstNode {
 
     /// Additional attributes (modifier values, etc.)
     pub attributes: HashMap<String, String>,
+
+    /// Ordered attribute keys (preserves insertion order)
+    pub attribute_keys: Vec<String>,
 }
 
 impl AstNode {
@@ -29,6 +32,7 @@ impl AstNode {
             children: Vec::new(),
             position: None,
             attributes: HashMap::new(),
+            attribute_keys: Vec::new(),
         }
     }
 
@@ -46,7 +50,11 @@ impl AstNode {
 
     /// Add an attribute
     pub fn with_attribute(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.attributes.insert(key.into(), value.into());
+        let key = key.into();
+        if !self.attributes.contains_key(&key) {
+            self.attribute_keys.push(key.clone());
+        }
+        self.attributes.insert(key, value.into());
         self
     }
 
@@ -80,7 +88,10 @@ pub struct Position {
 impl Position {
     pub fn new(start: usize, end: usize, line: usize, column: usize) -> Self {
         Self {
-            start, end, line, column,
+            start,
+            end,
+            line,
+            column,
         }
     }
 }
@@ -228,12 +239,13 @@ pub enum NodeType {
 impl NodeType {
     /// Check if this node type represents emphasis
     pub fn is_emphasis(&self) -> bool {
-        matches!(self,
-            NodeType::ShortEmphasisModerate |
-            NodeType::ShortEmphasisStrong |
-            NodeType::ShortEmphasisNone |
-            NodeType::ShortEmphasisReduced |
-            NodeType::Emphasis
+        matches!(
+            self,
+            NodeType::ShortEmphasisModerate
+                | NodeType::ShortEmphasisStrong
+                | NodeType::ShortEmphasisNone
+                | NodeType::ShortEmphasisReduced
+                | NodeType::Emphasis
         )
     }
 
@@ -244,15 +256,32 @@ impl NodeType {
 
     /// Check if this node type represents a modifier
     pub fn is_modifier(&self) -> bool {
-        matches!(self,
-            NodeType::Emphasis | NodeType::Voice | NodeType::Lang |
-            NodeType::Rate | NodeType::Pitch | NodeType::Volume |
-            NodeType::Whisper | NodeType::Excited | NodeType::Disappointed |
-            NodeType::Newscaster | NodeType::Dj | NodeType::Date |
-            NodeType::Time | NodeType::Number | NodeType::Ordinal |
-            NodeType::Characters | NodeType::Fraction | NodeType::Telephone |
-            NodeType::Unit | NodeType::Address | NodeType::Interjection |
-            NodeType::Expletive | NodeType::Ipa | NodeType::Sub
+        matches!(
+            self,
+            NodeType::Emphasis
+                | NodeType::Voice
+                | NodeType::Lang
+                | NodeType::Rate
+                | NodeType::Pitch
+                | NodeType::Volume
+                | NodeType::Whisper
+                | NodeType::Excited
+                | NodeType::Disappointed
+                | NodeType::Newscaster
+                | NodeType::Dj
+                | NodeType::Date
+                | NodeType::Time
+                | NodeType::Number
+                | NodeType::Ordinal
+                | NodeType::Characters
+                | NodeType::Fraction
+                | NodeType::Telephone
+                | NodeType::Unit
+                | NodeType::Address
+                | NodeType::Interjection
+                | NodeType::Expletive
+                | NodeType::Ipa
+                | NodeType::Sub
         )
     }
 }

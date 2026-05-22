@@ -26,7 +26,8 @@ fn test_all_test_cases() {
             continue;
         }
 
-        let test_name = test_dir.file_name()
+        let test_name = test_dir
+            .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");
 
@@ -52,7 +53,9 @@ fn test_all_test_cases() {
                 let mut all_checks_passed = true;
 
                 // Test text output
-                if let Ok(expected_text) = fs::read_to_string(test_dir.join(format!("{}.txt", test_name))) {
+                if let Ok(expected_text) =
+                    fs::read_to_string(test_dir.join(format!("{}.txt", test_name)))
+                {
                     let text_result = SpeechMarkdownParser::to_text(&input);
                     if text_result.is_err() {
                         all_checks_passed = false;
@@ -67,8 +70,9 @@ fn test_all_test_cases() {
                 // Test SSML output for Amazon Alexa
                 let alexa_file = test_dir.join(format!("{}.alexa.ssml", test_name));
                 if alexa_file.exists() {
-                    let expected_ssml = fs::read_to_string(&alexa_file)
-                        .unwrap_or_else(|_| panic!("Failed to read Alexa SSML file: {:?}", alexa_file));
+                    let expected_ssml = fs::read_to_string(&alexa_file).unwrap_or_else(|_| {
+                        panic!("Failed to read Alexa SSML file: {:?}", alexa_file)
+                    });
 
                     let ssml_result = SpeechMarkdownParser::to_ssml(&input, Platform::AmazonAlexa);
                     if ssml_result.is_err() {
@@ -84,10 +88,12 @@ fn test_all_test_cases() {
                 // Test SSML output for Google Assistant
                 let google_file = test_dir.join(format!("{}.google.ssml", test_name));
                 if google_file.exists() {
-                    let expected_ssml = fs::read_to_string(&google_file)
-                        .unwrap_or_else(|_| panic!("Failed to read Google SSML file: {:?}", google_file));
+                    let expected_ssml = fs::read_to_string(&google_file).unwrap_or_else(|_| {
+                        panic!("Failed to read Google SSML file: {:?}", google_file)
+                    });
 
-                    let ssml_result = SpeechMarkdownParser::to_ssml(&input, Platform::GoogleAssistant);
+                    let ssml_result =
+                        SpeechMarkdownParser::to_ssml(&input, Platform::GoogleAssistant);
                     if ssml_result.is_err() {
                         all_checks_passed = false;
                     } else {
@@ -115,21 +121,25 @@ fn test_all_test_cases() {
     println!("Total tests: {}", passed + failed);
     println!("Passed: {}", passed);
     println!("Failed: {}", failed);
-    println!("Pass rate: {:.1}%", (passed as f64 / (passed + failed) as f64) * 100.0);
+    println!(
+        "Pass rate: {:.1}%",
+        (passed as f64 / (passed + failed) as f64) * 100.0
+    );
 
     if failed > 0 {
-        println!("\n=== Failed Tests (first 10) ===");
-        for test in failed_tests.iter().take(10) {
+        println!("\n=== All Failed Tests ===");
+        for test in &failed_tests {
             println!("  - {}", test);
-        }
-        if failed_tests.len() > 10 {
-            println!("  ... and {} more", failed_tests.len() - 10);
         }
     }
 
     // Only panic if we have significant failures (>50% fail rate)
     if failed > 0 && (failed as f64 / (passed + failed) as f64) > 0.5 {
-        panic!("Too many test failures: {}/{} failed", failed, passed + failed);
+        panic!(
+            "Too many test failures: {}/{} failed",
+            failed,
+            passed + failed
+        );
     }
 }
 
@@ -155,10 +165,10 @@ fn run_single_test(test_name: &str) {
 
     let input = fs::read_to_string(&smd_file)
         .unwrap_or_else(|_| panic!("Failed to read test file: {:?}", smd_file))
-        .trim_end_matches(|c| c == '\r' || c == '\n').to_string();
+        .trim_end_matches(|c| c == '\r' || c == '\n')
+        .to_string();
 
-    let ast = SpeechMarkdownParser::parse(&input)
-        .expect("Parse failed");
+    let ast = SpeechMarkdownParser::parse(&input).expect("Parse failed");
 
     // Test text output if it exists
     let text_file = test_dir.join(format!("{}.txt", test_name));
@@ -166,11 +176,13 @@ fn run_single_test(test_name: &str) {
         let expected_text = fs::read_to_string(&text_file)
             .unwrap_or_else(|_| panic!("Failed to read text file: {:?}", text_file));
 
-        let actual_text = SpeechMarkdownParser::to_text(&input)
-            .expect("Text formatting failed");
+        let actual_text = SpeechMarkdownParser::to_text(&input).expect("Text formatting failed");
 
-        assert_eq!(actual_text.trim(), normalize_line_endings(&expected_text.trim()),
-            "Text output mismatch");
+        assert_eq!(
+            actual_text.trim(),
+            normalize_line_endings(&expected_text.trim()),
+            "Text output mismatch"
+        );
     }
 
     // Test SSML output if it exists
@@ -182,7 +194,10 @@ fn run_single_test(test_name: &str) {
         let actual_ssml = SpeechMarkdownParser::to_ssml(&input, Platform::AmazonAlexa)
             .expect("SSML formatting failed");
 
-        assert_eq!(actual_ssml.trim(), normalize_line_endings(&expected_ssml.trim()),
-            "Alexa SSML output mismatch");
+        assert_eq!(
+            actual_ssml.trim(),
+            normalize_line_endings(&expected_ssml.trim()),
+            "Alexa SSML output mismatch"
+        );
     }
 }

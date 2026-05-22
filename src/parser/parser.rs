@@ -103,23 +103,37 @@ impl SpeechMarkdownParser {
                     }
                 }
                 '~' => {
-                    flush_text(&mut document, &mut current_text);
-                    let mut emphasized_text = String::new();
-                    let mut found_end = false;
-                    while let Some(&next_c) = chars.peek() {
-                        chars.next();
-                        if next_c == '~' {
-                            found_end = true;
-                            break;
-                        }
-                        emphasized_text.push(next_c);
-                    }
-                    if found_end && !emphasized_text.is_empty() {
-                        document = document
-                            .add_child(AstNode::new(NodeType::ShortEmphasisNone, emphasized_text));
-                    } else {
+                    let prev_is_boundary = current_text.is_empty()
+                        || current_text.ends_with(|c: char| c.is_whitespace());
+                    if !prev_is_boundary {
                         current_text.push('~');
-                        current_text.push_str(&emphasized_text);
+                    } else {
+                        flush_text(&mut document, &mut current_text);
+                        let mut emphasized_text = String::new();
+                        let mut found_end = false;
+                        while let Some(&next_c) = chars.peek() {
+                            chars.next();
+                            if next_c == '~' {
+                                found_end = true;
+                                break;
+                            }
+                            emphasized_text.push(next_c);
+                        }
+                        if found_end
+                            && !emphasized_text.is_empty()
+                            && !emphasized_text.contains(' ')
+                        {
+                            document = document.add_child(AstNode::new(
+                                NodeType::ShortEmphasisNone,
+                                emphasized_text,
+                            ));
+                        } else {
+                            current_text.push('~');
+                            current_text.push_str(&emphasized_text);
+                            if found_end {
+                                current_text.push('~');
+                            }
+                        }
                     }
                 }
                 '-' => {
@@ -133,6 +147,10 @@ impl SpeechMarkdownParser {
                         let mut found_end = false;
                         while let Some(&next_c) = chars.peek() {
                             chars.next();
+                            if next_c == '\n' || next_c == '\r' {
+                                emphasized_text.push(next_c);
+                                break;
+                            }
                             if next_c == '-' {
                                 let next_is_boundary =
                                     chars.peek().map_or(true, |c| c.is_whitespace());
@@ -146,7 +164,10 @@ impl SpeechMarkdownParser {
                                 emphasized_text.push(next_c);
                             }
                         }
-                        if found_end && !emphasized_text.is_empty() {
+                        if found_end
+                            && !emphasized_text.is_empty()
+                            && !emphasized_text.contains(' ')
+                        {
                             document = document.add_child(AstNode::new(
                                 NodeType::ShortEmphasisReduced,
                                 emphasized_text,
@@ -154,6 +175,9 @@ impl SpeechMarkdownParser {
                         } else {
                             current_text.push('-');
                             current_text.push_str(&emphasized_text);
+                            if found_end {
+                                current_text.push('-');
+                            }
                         }
                     }
                 }

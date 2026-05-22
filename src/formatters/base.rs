@@ -90,12 +90,9 @@ pub trait Formatter {
 /// Create a formatter for the specified platform
 pub fn create_formatter(platform: Platform, options: FormatterOptions) -> Box<dyn Formatter> {
     match platform {
-        Platform::AmazonAlexa => {
-            Box::new(super::ssml::AmazonAlexaSsmlFormatter::new(options))
-        }
+        Platform::AmazonAlexa => Box::new(super::ssml::AmazonAlexaSsmlFormatter::new(options)),
         Platform::GoogleAssistant => {
-            // For now, use the base SSML formatter
-            Box::new(super::ssml::SsmlFormatterBase::new(options))
+            Box::new(super::ssml::GoogleAssistantSsmlFormatter::new(options))
         }
         Platform::MicrosoftAzure => {
             Box::new(super::ssml::MicrosoftAzureSsmlFormatter::new(options))

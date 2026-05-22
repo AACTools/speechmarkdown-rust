@@ -45,11 +45,170 @@ impl SsmlFormatterBase {
             "lang".to_string(),
             "sub".to_string(),
             "phoneme".to_string(),
+            "amazon:effect".to_string(),
+            "amazon:emotion".to_string(),
+            "amazon:domain".to_string(),
         ]
     }
 
+    pub fn format_node_internal(&self, node: &AstNode) -> Result<String> {
+        self.format_node_with_tags(node)
+    }
+
+    fn capitalize_voice_name(name: &str) -> String {
+        let valid_names = [
+            "Ivy",
+            "Joanna",
+            "Joey",
+            "Justin",
+            "Kendra",
+            "Kimberly",
+            "Matthew",
+            "Salli",
+            "Brian",
+            "Amy",
+            "Emma",
+            "Geraint",
+            "Russell",
+            "Nicole",
+            "Celine",
+            "Mathieu",
+            "Dora",
+            "Victor",
+            "Tatyana",
+            "Maxim",
+            "Hans",
+            "Marlene",
+            "Vicki",
+            "Aditi",
+            "Karl",
+            "Giorgio",
+            "Carla",
+            "Bianca",
+            "Lucia",
+            "Mizuki",
+            "Takumi",
+            "Vitoria",
+            "Ricardo",
+            "Ines",
+            "Cristiano",
+            "Lea",
+            "Zhiyu",
+            "Naja",
+            "Mads",
+            "Gwyneth",
+            "Lotte",
+            "Ruben",
+            "Ewa",
+            "Filiz",
+            "Penelope",
+            "Lupe",
+            "Mia",
+            "Conchita",
+            "Enrique",
+            "Miguel",
+            "Penny",
+            "Astrid",
+            "Bjorn",
+            "Sofia",
+            "Kasper",
+            "Seoyeon",
+            "Kendra",
+            "Salli",
+            "Aria",
+            "Jenny",
+            "Guy",
+            "Davis",
+            "Amber",
+            "Ana",
+            "Andrew",
+            "Christopher",
+            "Eric",
+            "Tony",
+        ];
+        let lower = name.to_lowercase();
+        for valid in &valid_names {
+            if valid.to_lowercase() == lower {
+                return valid.to_string();
+            }
+        }
+        name.to_string()
+    }
+
+    fn is_valid_voice_name(name: &str) -> bool {
+        let valid_names = [
+            "Ivy",
+            "Joanna",
+            "Joey",
+            "Justin",
+            "Kendra",
+            "Kimberly",
+            "Matthew",
+            "Salli",
+            "Brian",
+            "Amy",
+            "Emma",
+            "Geraint",
+            "Russell",
+            "Nicole",
+            "Celine",
+            "Mathieu",
+            "Dora",
+            "Victor",
+            "Tatyana",
+            "Maxim",
+            "Hans",
+            "Marlene",
+            "Vicki",
+            "Aditi",
+            "Karl",
+            "Giorgio",
+            "Carla",
+            "Bianca",
+            "Lucia",
+            "Mizuki",
+            "Takumi",
+            "Vitoria",
+            "Ricardo",
+            "Ines",
+            "Cristiano",
+            "Lea",
+            "Zhiyu",
+            "Naja",
+            "Mads",
+            "Gwyneth",
+            "Lotte",
+            "Ruben",
+            "Ewa",
+            "Filiz",
+            "Penelope",
+            "Lupe",
+            "Mia",
+            "Conchita",
+            "Enrique",
+            "Miguel",
+            "Penny",
+            "Astrid",
+            "Bjorn",
+            "Sofia",
+            "Kasper",
+            "Seoyeon",
+            "Aria",
+            "Jenny",
+            "Guy",
+            "Davis",
+            "Amber",
+            "Ana",
+            "Andrew",
+            "Christopher",
+            "Eric",
+            "Tony",
+        ];
+        valid_names.contains(&name)
+    }
+
     /// Format an AST node with proper SSML tag application
-    fn format_node_with_tags(&self, node: &AstNode) -> Result<String> {
+    pub fn format_node_with_tags(&self, node: &AstNode) -> Result<String> {
         match node.node_type {
             // Structural nodes
             NodeType::Document => self.format_document(node),
@@ -88,7 +247,7 @@ impl SsmlFormatterBase {
             NodeType::ShortSub => self.format_short_sub(node),
 
             // Default: handle as plain text
-            _ => Ok(self.escape_xml(&node.text)),
+            _ => Ok(node.text.clone()),
         }
     }
 
@@ -108,7 +267,8 @@ impl SsmlFormatterBase {
                     let next_child = children_iter.next().unwrap();
                     section_content_raw.push_str(&self.format_node_with_tags(next_child)?);
                 }
-                let section_content = if section_content_raw.starts_with('\n') {
+                let had_leading_newline = section_content_raw.starts_with('\n');
+                let section_content = if had_leading_newline {
                     &section_content_raw[1..]
                 } else {
                     &section_content_raw
@@ -121,19 +281,27 @@ impl SsmlFormatterBase {
                     String::new()
                 };
 
-                content.push_str(&section_open);
-                if !section_open.is_empty() && section_content.starts_with('\n') {
-                    content.push('\n');
+                if !section_open.is_empty() {
+                    content.push_str(&section_open);
+                    if had_leading_newline {
+                        content.push('\n');
+                    }
+                    content.push_str(section_content);
+                    content.push_str(&section_close);
+                    if had_leading_newline {
+                        content.push('\n');
+                    }
+                } else {
+                    content.push_str(section_content);
                 }
-                content.push_str(section_content);
-                content.push_str(&section_close);
             } else {
                 content.push_str(&self.format_node_with_tags(child)?);
             }
         }
 
         if self.options.include_speak_tag {
-            Ok(format!("<speak>\n{}\n</speak>", content))
+            let trimmed = content.trim_end_matches('\n');
+            Ok(format!("<speak>\n{}\n</speak>", trimmed))
         } else {
             Ok(content)
         }
@@ -173,7 +341,24 @@ impl SsmlFormatterBase {
 
     fn format_section(&self, node: &AstNode) -> Result<String> {
         let mut tags: Vec<(String, HashMap<String, String>)> = Vec::new();
-        for (key, value) in &node.attributes {
+
+        // Handle "style" attribute specially - try to resolve it as a modifier
+        if let Some(style) = node.attributes.get("style") {
+            if style != "defaults" {
+                if let Some(tag_info) = self.attribute_to_tag(style, "") {
+                    tags.push(tag_info);
+                }
+            }
+        }
+
+        for key in &node.attribute_keys {
+            let value = match node.attributes.get(key) {
+                Some(v) => v,
+                None => continue,
+            };
+            if key == "style" {
+                continue;
+            }
             if let Some(tag_info) = self.attribute_to_tag(key, value) {
                 let tag_name = tag_info.0.clone();
                 if tag_name == "prosody" {
@@ -187,6 +372,14 @@ impl SsmlFormatterBase {
                 tags.push(tag_info);
             }
         }
+
+        let section_tag_order = vec!["voice", "lang", "prosody", "emphasis"];
+        tags.sort_by_key(|(tag_name, _)| {
+            section_tag_order
+                .iter()
+                .position(|t| t == tag_name)
+                .unwrap_or(usize::MAX)
+        });
 
         if tags.is_empty() {
             return Ok(String::new());
@@ -207,9 +400,25 @@ impl SsmlFormatterBase {
         Ok(result)
     }
 
-    fn format_section_close(&self, node: &AstNode) -> Result<String> {
+    pub fn format_section_close(&self, node: &AstNode) -> Result<String> {
         let mut tags: Vec<(String, HashMap<String, String>)> = Vec::new();
-        for (key, value) in &node.attributes {
+
+        if let Some(style) = node.attributes.get("style") {
+            if style != "defaults" {
+                if let Some(tag_info) = self.attribute_to_tag(style, "") {
+                    tags.push(tag_info);
+                }
+            }
+        }
+
+        for key in &node.attribute_keys {
+            let value = match node.attributes.get(key) {
+                Some(v) => v,
+                None => continue,
+            };
+            if key == "style" {
+                continue;
+            }
             if let Some(tag_info) = self.attribute_to_tag(key, value) {
                 let tag_name = tag_info.0.clone();
                 if tag_name == "prosody" {
@@ -224,13 +433,24 @@ impl SsmlFormatterBase {
             }
         }
 
+        let section_tag_order = vec!["voice", "lang", "prosody", "emphasis"];
+        tags.sort_by_key(|(tag_name, _)| {
+            section_tag_order
+                .iter()
+                .position(|t| t == tag_name)
+                .unwrap_or(usize::MAX)
+        });
+
         if tags.is_empty() {
             return Ok(String::new());
         }
 
         let mut result = String::new();
-        for (tag_name, _) in tags.iter().rev() {
-            result.push_str(&format!("</{}>\n", tag_name));
+        for (i, (tag_name, _)) in tags.iter().rev().enumerate() {
+            result.push_str(&format!("</{}>", tag_name));
+            if i < tags.len() - 1 {
+                result.push('\n');
+            }
         }
         Ok(result)
     }
@@ -264,7 +484,11 @@ impl SsmlFormatterBase {
         let mut tags: Vec<(String, HashMap<String, String>)> = Vec::new();
         let mut last_say_as: Option<(String, HashMap<String, String>)> = None;
 
-        for (key, value) in &node.attributes {
+        for key in &node.attribute_keys {
+            let value = match node.attributes.get(key) {
+                Some(v) => v,
+                None => continue,
+            };
             if let Some(tag_info) = self.attribute_to_tag(key, value) {
                 let tag_name = tag_info.0.clone();
                 if tag_name == "prosody" {
@@ -435,7 +659,7 @@ impl SsmlFormatterBase {
         }
     }
 
-    fn attribute_to_tag(
+    pub fn attribute_to_tag(
         &self,
         key: &str,
         value: &str,
@@ -522,7 +746,11 @@ impl SsmlFormatterBase {
                 if value.is_empty() || value == "device" {
                     return None;
                 }
-                attributes.insert("name".to_string(), value.to_string());
+                let name = Self::capitalize_voice_name(value);
+                if !Self::is_valid_voice_name(&name) {
+                    return None;
+                }
+                attributes.insert("name".to_string(), name);
                 Some(("voice".to_string(), attributes))
             }
             "lang" => {
@@ -562,23 +790,53 @@ impl SsmlFormatterBase {
                 attrs
             })),
             "excited" => {
-                let intensity = if value.is_empty() { "medium" } else { value };
-                Some(("amazon:emotion".to_string(), {
-                    let mut attrs = HashMap::new();
-                    attrs.insert("name".to_string(), "excited".to_string());
-                    attrs.insert("intensity".to_string(), intensity.to_string());
-                    attrs
-                }))
+                if value.is_empty() {
+                    Some(("amazon:emotion".to_string(), {
+                        let mut attrs = HashMap::new();
+                        attrs.insert("name".to_string(), "excited".to_string());
+                        attrs.insert("intensity".to_string(), "medium".to_string());
+                        attrs
+                    }))
+                } else if matches!(value, "low" | "medium" | "high") {
+                    Some(("amazon:emotion".to_string(), {
+                        let mut attrs = HashMap::new();
+                        attrs.insert("name".to_string(), "excited".to_string());
+                        attrs.insert("intensity".to_string(), value.to_string());
+                        attrs
+                    }))
+                } else {
+                    None
+                }
             }
             "disappointed" => {
-                let intensity = if value.is_empty() { "medium" } else { value };
-                Some(("amazon:emotion".to_string(), {
-                    let mut attrs = HashMap::new();
-                    attrs.insert("name".to_string(), "disappointed".to_string());
-                    attrs.insert("intensity".to_string(), intensity.to_string());
-                    attrs
-                }))
+                if value.is_empty() {
+                    Some(("amazon:emotion".to_string(), {
+                        let mut attrs = HashMap::new();
+                        attrs.insert("name".to_string(), "disappointed".to_string());
+                        attrs.insert("intensity".to_string(), "medium".to_string());
+                        attrs
+                    }))
+                } else if matches!(value, "low" | "medium" | "high") {
+                    Some(("amazon:emotion".to_string(), {
+                        let mut attrs = HashMap::new();
+                        attrs.insert("name".to_string(), "disappointed".to_string());
+                        attrs.insert("intensity".to_string(), value.to_string());
+                        attrs
+                    }))
+                } else {
+                    None
+                }
             }
+            "dj" => Some(("amazon:domain".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("name".to_string(), "music".to_string());
+                attrs
+            })),
+            "newscaster" => Some(("amazon:domain".to_string(), {
+                let mut attrs = HashMap::new();
+                attrs.insert("name".to_string(), "news".to_string());
+                attrs
+            })),
             _ => None,
         }
     }
@@ -597,7 +855,11 @@ impl SsmlFormatterBase {
     }
 
     /// Apply multiple tags to text in the correct order
-    fn format_attr_string(&self, tag_name: &str, attributes: &HashMap<String, String>) -> String {
+    pub fn format_attr_string(
+        &self,
+        tag_name: &str,
+        attributes: &HashMap<String, String>,
+    ) -> String {
         let order: Vec<&str> = match tag_name {
             "say-as" => vec!["interpret-as", "format"],
             "phoneme" => vec!["alphabet", "ph"],
@@ -607,6 +869,7 @@ impl SsmlFormatterBase {
             "emphasis" => vec!["level"],
             "amazon:effect" => vec!["name"],
             "amazon:emotion" => vec!["name", "intensity"],
+            "amazon:domain" => vec!["name"],
             "sub" => vec!["alias"],
             _ => vec![],
         };
@@ -625,7 +888,7 @@ impl SsmlFormatterBase {
         parts.join(" ")
     }
 
-    fn apply_tags_to_text(
+    pub fn apply_tags_to_text(
         &self,
         text: &str,
         tags: &[(String, HashMap<String, String>)],

@@ -1,7 +1,7 @@
 use crate::ast::{AstNode, NodeType};
 use crate::error::Result;
-use crate::formatters::ssml::base::SsmlFormatterBase;
 use crate::formatters::base::{Formatter, FormatterOptions};
+use crate::formatters::ssml::base::SsmlFormatterBase;
 
 pub struct AmazonAlexaSsmlFormatter {
     base: SsmlFormatterBase,
@@ -16,17 +16,18 @@ impl AmazonAlexaSsmlFormatter {
 
     /// Override to add Amazon-specific functionality
     fn format_amazon_audio(&self, node: &AstNode) -> Result<String> {
-        let src = node.attributes.get("src")
-            .unwrap_or(&String::new())
-            .clone();
+        let src = node.attributes.get("src").unwrap_or(&String::new()).clone();
 
         let caption = &node.text;
 
         if caption.is_empty() {
             Ok(format!("<audio src=\"{}\"/>", src))
         } else {
-            Ok(format!("<audio src=\"{}\">\n<desc>{}</desc>\n</audio>",
-                src, self.base.escape_xml(caption)))
+            Ok(format!(
+                "<audio src=\"{}\">\n<desc>{}</desc>\n</audio>",
+                src,
+                self.base.escape_xml(caption)
+            ))
         }
     }
 
@@ -38,12 +39,16 @@ impl AmazonAlexaSsmlFormatter {
             _ => return Ok(String::new()),
         };
 
-        let intensity = node.attributes.get("value")
+        let intensity = node
+            .attributes
+            .get("value")
             .unwrap_or(&"medium".to_string())
             .clone();
 
-        Ok(format!("<amazon:emotion name=\"{}\" intensity=\"{}\">",
-            emotion_type, intensity))
+        Ok(format!(
+            "<amazon:emotion name=\"{}\" intensity=\"{}\">",
+            emotion_type, intensity
+        ))
     }
 
     /// Format Amazon-specific domain tags
@@ -87,14 +92,16 @@ mod tests {
     #[test]
     fn test_amazon_alexa_basic_parsing() {
         let input = "Hello world";
-        let result = SpeechMarkdownParser::to_ssml(input, crate::formatters::base::Platform::AmazonAlexa);
+        let result =
+            SpeechMarkdownParser::to_ssml(input, crate::formatters::base::Platform::AmazonAlexa);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_amazon_alexa_with_break() {
         let input = "Sample [2s] text";
-        let result = SpeechMarkdownParser::to_ssml(input, crate::formatters::base::Platform::AmazonAlexa);
+        let result =
+            SpeechMarkdownParser::to_ssml(input, crate::formatters::base::Platform::AmazonAlexa);
         assert!(result.is_ok());
 
         let ssml = result.unwrap();
@@ -104,7 +111,8 @@ mod tests {
     #[test]
     fn test_amazon_alexa_with_emphasis() {
         let input = "++strong emphasis++";
-        let result = SpeechMarkdownParser::to_ssml(input, crate::formatters::base::Platform::AmazonAlexa);
+        let result =
+            SpeechMarkdownParser::to_ssml(input, crate::formatters::base::Platform::AmazonAlexa);
         assert!(result.is_ok());
 
         let ssml = result.unwrap();

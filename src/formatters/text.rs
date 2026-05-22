@@ -158,6 +158,7 @@ impl TextFormatter {
         let cleaned: Vec<String> = lines
             .iter()
             .map(|line| line.split_whitespace().collect::<Vec<_>>().join(" "))
+            .filter(|line| !line.is_empty())
             .collect();
         let result = cleaned.join("\n");
         result.trim().to_string()

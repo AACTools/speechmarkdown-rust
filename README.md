@@ -10,6 +10,7 @@ High-performance SpeechMarkdown parser written in Rust. Converts [SpeechMarkdown
 | Python | [speechmarkdown-rust](https://pypi.org/project/speechmarkdown-rust/) | `pip install speechmarkdown-rust` |
 | Node.js | [speechmarkdown](https://www.npmjs.com/package/speechmarkdown) | `npm install speechmarkdown` |
 | .NET | [SpeechMarkdown](https://www.nuget.org/packages/SpeechMarkdown) | `dotnet add package SpeechMarkdown` |
+| Swift | [Release asset](https://github.com/AACTools/speechmarkdown-rust/releases) | Download `speechmarkdown-swift-package.zip` |
 
 ## Supported Platforms
 
@@ -127,6 +128,13 @@ string smd = parser.ToSmd("<speak><emphasis level=\"strong\">word</emphasis></sp
 ```
 
 ### Swift
+
+Download `speechmarkdown-swift-package.zip` from the [latest release](https://github.com/AACTools/speechmarkdown-rust/releases), unzip it, and add it as a local package in Xcode:
+
+1. **Xcode**: File > Add Packages > Add Local > select the unzipped directory
+2. **Or in Package.swift**: `.package(path: "./path/to/speechmarkdown-swift-package")`
+
+To build from source instead: `./build-swift-package.sh` (requires Rust toolchain with `aarch64-apple-darwin` and `x86_64-apple-darwin` targets)
 
 ```swift
 import SpeechMarkdown

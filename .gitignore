@@ -22,3 +22,6 @@ Cargo.lock
 # Node
 node_modules/
 *.node
+
+# Swift package distribution (built by build-swift-package.sh)
+swift-package-dist/

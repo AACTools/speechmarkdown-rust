@@ -1,4 +1,5 @@
 import Foundation
+import CSpeechMarkdown
 
 public class SpeechMarkdownParser {
 
@@ -30,7 +31,7 @@ public class SpeechMarkdownParser {
                         throw SpeechMarkdownError.fromLastError(context: "toSsml")
                     }
                     let str = String(cString: ptr!)
-                    speechmarkdown_free(ptr)
+                    speechmarkdown_free(UnsafeMutablePointer(mutating: ptr!))
                     return str
                 }
             }
@@ -46,7 +47,7 @@ public class SpeechMarkdownParser {
                     throw SpeechMarkdownError.fromLastError(context: "toText")
                 }
                 let str = String(cString: ptr!)
-                speechmarkdown_free(ptr)
+                speechmarkdown_free(UnsafeMutablePointer(mutating: ptr!))
                 return str
             }
             return result!
@@ -61,7 +62,7 @@ public class SpeechMarkdownParser {
                     throw SpeechMarkdownError.fromLastError(context: "parseToJson")
                 }
                 let str = String(cString: ptr!)
-                speechmarkdown_free(ptr)
+                speechmarkdown_free(UnsafeMutablePointer(mutating: ptr!))
                 return str
             }
             return result!
@@ -76,7 +77,7 @@ public class SpeechMarkdownParser {
                     throw SpeechMarkdownError.fromLastError(context: "toSmd")
                 }
                 let str = String(cString: ptr!)
-                speechmarkdown_free(ptr)
+                speechmarkdown_free(UnsafeMutablePointer(mutating: ptr!))
                 return str
             }
             return result!
@@ -99,7 +100,7 @@ public enum SpeechMarkdownError: Error, LocalizedError {
             return .error("\(context): unknown error")
         }
         let msg = String(cString: errorPtr)
-        speechmarkdown_free(errorPtr)
+        speechmarkdown_free(UnsafeMutablePointer(mutating: errorPtr))
         return .error("\(context): \(msg)")
     }
 }

@@ -337,3 +337,139 @@ jobs:
         run: |
           $pkg = Get-ChildItem output/*.nupkg | Select-Object -First 1
           dotnet nuget push $pkg.FullName --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+
+  build-swift:
+    name: Swift Package
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: version-sync
+          path: .
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+      - name: Build Rust (Apple Silicon)
+        run: cargo build --release --target aarch64-apple-darwin
+      - name: Build Rust (Intel)
+        run: cargo build --release --target x86_64-apple-darwin
+      - name: Assemble Swift package
+        run: |
+          # Universal static lib
+          mkdir -p target/universal
+          lipo -create \
+            target/aarch64-apple-darwin/release/libspeechmarkdown_rust.a \
+            target/x86_64-apple-darwin/release/libspeechmarkdown_rust.a \
+            -output target/universal/libspeechmarkdown_rust.a
+          strip -x target/universal/libspeechmarkdown_rust.a
+
+          # XCFramework
+          PREP=$(mktemp -d)
+          mkdir -p "$PREP/macos-archs"
+          cp target/universal/libspeechmarkdown_rust.a "$PREP/macos-archs/"
+          cp bindings/speechmarkdown.h "$PREP/macos-archs/"
+          cp bindings/swift/Sources/CSpeechMarkdown/shim.h "$PREP/macos-archs/"
+          cp bindings/swift/Sources/CSpeechMarkdown/module.modulemap "$PREP/macos-archs/"
+          xcodebuild -create-xcframework \
+            -library "$PREP/macos-archs/libspeechmarkdown_rust.a" \
+            -headers "$PREP/macos-archs/" \
+            -output "$PREP/SpeechMarkdownRust.xcframework"
+
+          # Swift package directory
+          DIST="$GITHUB_WORKSPACE/swift-package-dist"
+          rm -rf "$DIST"
+          mkdir -p "$DIST/Sources/SpeechMarkdown"
+          mkdir -p "$DIST/Tests/SpeechMarkdownTests"
+          cp -R "$PREP/SpeechMarkdownRust.xcframework" "$DIST/"
+          cp bindings/swift/SpeechMarkdown.swift "$DIST/Sources/SpeechMarkdown/"
+        shell: bash
+      - name: Write Package.swift
+        run: |
+          cat > swift-package-dist/Package.swift << 'SWIFTPKG'
+          // swift-tools-version:5.9
+          import PackageDescription
+          let package = Package(
+              name: "SpeechMarkdown",
+              platforms: [.macOS(.v12)],
+              products: [
+                  .library(name: "SpeechMarkdown", targets: ["SpeechMarkdown"]),
+              ],
+              targets: [
+                  .binaryTarget(
+                      name: "SpeechMarkdownRust",
+                      path: "SpeechMarkdownRust.xcframework"
+                  ),
+                  .target(
+                      name: "SpeechMarkdown",
+                      dependencies: ["SpeechMarkdownRust"],
+                      path: "Sources/SpeechMarkdown"
+                  ),
+                  .testTarget(
+                      name: "SpeechMarkdownTests",
+                      dependencies: ["SpeechMarkdown"],
+                      path: "Tests/SpeechMarkdownTests"
+                  ),
+              ]
+          )
+          SWIFTPKG
+      - name: Write tests
+        run: |
+          cat > swift-package-dist/Tests/SpeechMarkdownTests/SpeechMarkdownTests.swift << 'SWIFTTEST'
+          import XCTest
+          @testable import SpeechMarkdown
+
+          final class SpeechMarkdownTests: XCTestCase {
+              let parser = SpeechMarkdownParser()
+
+              func testIsSpeechMarkdown() {
+                  XCTAssertTrue(parser.isSpeechMarkdown(input: "Hello (world)[emphasis:\"strong\"]"))
+                  XCTAssertFalse(parser.isSpeechMarkdown(input: "Hello world"))
+              }
+
+              func testToSsml() throws {
+                  let ssml = try parser.toSsml(input: "Hello (world)[emphasis:\"strong\"]", platform: "amazon-alexa")
+                  XCTAssertTrue(ssml.contains("<emphasis"))
+              }
+
+              func testToText() throws {
+                  let text = try parser.toText(input: "Hello (world)[emphasis:\"strong\"]")
+                  XCTAssertEqual(text, "Hello world")
+              }
+
+              func testToSmd() throws {
+                  let smd = try parser.toSmd(ssml: "<speak><emphasis level=\"strong\">word</emphasis></speak>")
+                  XCTAssertEqual(smd, "++word++")
+              }
+
+              func testValidate() throws {
+                  try parser.validate(input: "Hello world")
+              }
+          }
+          SWIFTTEST
+      - name: Test Swift package
+        run: cd swift-package-dist && swift test
+      - name: Package artifact
+        run: cd swift-package-dist && zip -r "$GITHUB_WORKSPACE/speechmarkdown-swift-package.zip" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: swift-package
+          path: speechmarkdown-swift-package.zip
+
+  publish-github-release:
+    name: GitHub Release
+    needs: [build-swift]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: swift-package
+          path: .
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: speechmarkdown-swift-package.zip
+          fail_on_unmatched_files: true

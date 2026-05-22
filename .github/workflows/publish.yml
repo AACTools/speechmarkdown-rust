@@ -342,6 +342,8 @@ jobs:
     name: Swift Package
     needs: test
     runs-on: macos-latest
+    outputs:
+      checksum: ${{ steps.checksum.outputs.checksum }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -406,7 +408,7 @@ jobs:
           import PackageDescription
           let package = Package(
               name: "SpeechMarkdown",
-              platforms: [.macOS(.v12), .iOS(.v16)],
+              platforms: [.macOS(.v13), .iOS(.v16)],
               products: [
                   .library(name: "SpeechMarkdown", targets: ["SpeechMarkdown"]),
               ],
@@ -464,12 +466,27 @@ jobs:
           SWIFTTEST
       - name: Test Swift package
         run: cd swift-package-dist && swift test
-      - name: Package artifact
+      - name: Package full Swift package
         run: cd swift-package-dist && zip -r "$GITHUB_WORKSPACE/speechmarkdown-swift-package.zip" .
+      - name: Package standalone XCFramework
+        run: |
+          cd swift-package-dist/SpeechMarkdownRust.xcframework
+          zip -r "$GITHUB_WORKSPACE/SpeechMarkdownRust.xcframework.zip" .
+      - name: Compute checksum
+        id: checksum
+        run: |
+          CHECKSUM=$(shasum -a 256 "$GITHUB_WORKSPACE/SpeechMarkdownRust.xcframework.zip" | cut -d' ' -f1)
+          echo "checksum=$CHECKSUM" >> $GITHUB_OUTPUT
       - uses: actions/upload-artifact@v4
         with:
           name: swift-package
           path: speechmarkdown-swift-package.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xcframework-zip
+          path: SpeechMarkdownRust.xcframework.zip
+      - name: Output checksum
+        run: 'echo "XCFramework checksum: ${{ steps.checksum.outputs.checksum }}"'
 
   publish-github-release:
     name: GitHub Release
@@ -482,8 +499,37 @@ jobs:
         with:
           name: swift-package
           path: .
-      - name: Upload release asset
+      - uses: actions/download-artifact@v4
+        with:
+          name: xcframework-zip
+          path: .
+      - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
-          files: speechmarkdown-swift-package.zip
+          files: |
+            speechmarkdown-swift-package.zip
+            SpeechMarkdownRust.xcframework.zip
           fail_on_unmatched_files: true
+
+  update-spm-package:
+    name: Update SPM Package.swift
+    needs: [publish-github-release, build-swift]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update checksum in Package.swift
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          CHECKSUM="${{ needs.build-swift.outputs.checksum }}"
+          sed -i "s|url: \".*SpeechMarkdownRust.xcframework.zip\"|url: \"https://github.com/AACTools/speechmarkdown-rust/releases/download/v${VERSION}/SpeechMarkdownRust.xcframework.zip\"|" Package.swift
+          sed -i "s|checksum: \".*\"|checksum: \"${CHECKSUM}\"|" Package.swift
+      - name: Push to spm branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B spm
+          git add Package.swift
+          git diff --cached --quiet || git commit -m "Update SPM binary target for ${GITHUB_REF_NAME}"
+          git push origin spm --force

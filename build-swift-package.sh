@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$SCRIPT_DIR"
 DIST_DIR="$REPO_ROOT/swift-package-dist"
 
 echo "Installing iOS targets..."
@@ -71,7 +71,7 @@ import PackageDescription
 
 let package = Package(
     name: "SpeechMarkdown",
-    platforms: [.macOS(.v12), .iOS(.v16)],
+    platforms: [.macOS(.v13), .iOS(.v16)],
     products: [
         .library(name: "SpeechMarkdown", targets: ["SpeechMarkdown"]),
     ],

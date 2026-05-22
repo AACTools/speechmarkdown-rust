@@ -54,4 +54,3 @@ impl From<serde_json::Error> for ParseError {
         ParseError::JsonError(err.to_string())
     }
 }
-

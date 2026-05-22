@@ -1,0 +1,5 @@
+module SpeechMarkdown {
+    header "speechmarkdown.h"
+    link "speechmarkdown_rust"
+    export *
+}

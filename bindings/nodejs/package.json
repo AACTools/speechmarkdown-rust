@@ -1,0 +1,17 @@
+{
+  "name": "speechmarkdown-rust",
+  "version": "0.1.0",
+  "description": "SpeechMarkdown parser - Node.js bindings via native addon",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "build": "cargo build --release && node build.js",
+    "test": "node test.js"
+  },
+  "keywords": ["speech", "ssml", "tts", "voice", "speechmarkdown"],
+  "license": "MIT",
+  "napi": {
+    "name": "speechmarkdown",
+    "triples": {}
+  }
+}

@@ -18,7 +18,7 @@ thiserror = "1.0"
 # Removed problematic benchmark dependencies for now
 
 [lib]
-crate-type = ["rlib"]
+crate-type = ["rlib", "cdylib", "staticlib"]
 
 [profile.release]
 opt-level = 3

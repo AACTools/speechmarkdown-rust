@@ -2,11 +2,12 @@
 
 pub mod ast;
 pub mod error;
-pub mod parser;
+pub mod ffi;
 pub mod formatters;
+pub mod parser;
 
 // Re-export main types for convenience
 pub use ast::{AstNode, NodeType, Position};
 pub use error::{ParseError, Result};
+pub use formatters::base::{create_formatter, Formatter, FormatterOptions, Platform};
 pub use parser::SpeechMarkdownParser;
-pub use formatters::base::{Platform, Formatter, FormatterOptions, create_formatter};

@@ -1,0 +1,27 @@
+[defines]
+"feature = default" = "SPEECHMARKDOWN_DEFAULT"
+
+[fn]
+prefix = "SPEECHMARKDOWN_"
+rename_args = "None"
+
+[struct]
+rename_fields = "None"
+
+[enum]
+prefix_with_name = true
+rename_variants = "None"
+
+[export]
+include = [
+    "speechmarkdown_to_ssml",
+    "speechmarkdown_to_text",
+    "speechmarkdown_to_json",
+    "speechmarkdown_free",
+    "speechmarkdown_get_error",
+    "speechmarkdown_parse",
+]
+
+[lang]
+cpp = false
+c = true

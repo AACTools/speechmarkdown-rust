@@ -1,6 +1,6 @@
 pub mod base;
-pub mod text;
 pub mod ssml;
+pub mod text;
 
-pub use base::{Formatter, FormatterOptions, Platform, create_formatter};
+pub use base::{create_formatter, Formatter, FormatterOptions, Platform};
 pub use text::TextFormatter;

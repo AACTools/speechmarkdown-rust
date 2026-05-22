@@ -2,6 +2,7 @@
 #define SPEECHMARKDOWN_H
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,6 +32,15 @@ void speechmarkdown_free(char* s);
 // Returns: allocated string with error message, or NULL if no error.
 //          Caller must free with speechmarkdown_free().
 const char* speechmarkdown_get_error(void);
+
+bool speechmarkdown_is_speech_markdown(const char* input);
+
+bool speechmarkdown_validate(const char* input);
+
+// Convert SSML to SpeechMarkdown (best-effort, lossy for unsupported elements).
+// Returns: allocated string with SpeechMarkdown, or NULL on error.
+//          Caller must free with speechmarkdown_free().
+const char* speechmarkdown_to_smd(const char* input);
 
 #ifdef __cplusplus
 }

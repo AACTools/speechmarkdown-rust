@@ -277,6 +277,8 @@ jobs:
           merge-multiple: true
       - name: Collect .node binaries
         run: find ${{ github.workspace }}/npm-artifacts -name '*.node' -exec cp {} . \;
+      - name: Copy README
+        run: cp ${{ github.workspace }}/README.md .
       - run: npm install @napi-rs/cli
       - name: Publish
         run: npm publish --provenance --access public --ignore-scripts

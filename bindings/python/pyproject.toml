@@ -6,6 +6,7 @@ build-backend = "maturin"
 name = "speechmarkdown-rust"
 version = "0.1.0"
 description = "SpeechMarkdown parser - convert SpeechMarkdown to SSML"
+readme = "../../README.md"
 
 license = "MIT"
 requires-python = ">=3.8"

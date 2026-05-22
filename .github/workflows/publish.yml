@@ -161,7 +161,7 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist -i python3.13
           working-directory: bindings/python
-          sccache: "true"
+          sccache: "false"
           manylinux: auto
       - name: Build sdist
         if: matrix.target == 'x86_64-unknown-linux-gnu'

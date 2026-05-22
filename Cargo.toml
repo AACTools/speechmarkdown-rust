@@ -5,11 +5,13 @@ edition = "2021"
 authors = ["SpeechMarkdown Contributors"]
 description = "High-performance SpeechMarkdown parser with multi-language bindings"
 license = "MIT"
+readme = "README.md"
 repository = "https://github.com/speechmarkdown/speechmarkdown-rust"
 keywords = ["speech", "ssml", "tts", "voice", "parser"]
 categories = ["parser-implementations", "text-processing"]
 
 [dependencies]
+quick-xml = "0.37"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"

@@ -129,7 +129,7 @@ string smd = parser.ToSmd("<speak><emphasis level=\"strong\">word</emphasis></sp
 
 ### Swift
 
-Download `speechmarkdown-swift-package.zip` from the [latest release](https://github.com/AACTools/speechmarkdown-rust/releases), unzip it, and add it as a local package in Xcode:
+Download `speechmarkdown-swift-package.zip` from the [latest release](https://github.com/AACTools/speechmarkdown-rust/releases), unzip it, and add it as a local package in Xcode. Includes macOS (arm64 + x86_64), iOS device (arm64), and iOS simulator (arm64) slices.
 
 1. **Xcode**: File > Add Packages > Add Local > select the unzipped directory
 2. **Or in Package.swift**: `.package(path: "./path/to/speechmarkdown-swift-package")`

@@ -31,7 +31,7 @@ lipo -create \
     -output "$PREP_DIR/macos-arm64_x86_64/libspeechmarkdown_rust.a"
 strip -x "$PREP_DIR/macos-arm64_x86_64/libspeechmarkdown_rust.a"
 cp "$REPO_ROOT/bindings/speechmarkdown.h" "$PREP_DIR/macos-arm64_x86_64/"
-cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/shim.h" "$PREP_DIR/macos-arm64_x86_64/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/include/shim.h" "$PREP_DIR/macos-arm64_x86_64/"
 cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/module.modulemap" "$PREP_DIR/macos-arm64_x86_64/"
 
 # iOS device (arm64)
@@ -39,7 +39,7 @@ mkdir -p "$PREP_DIR/ios-arm64"
 cp "$REPO_ROOT/target/aarch64-apple-ios/release/libspeechmarkdown_rust.a" "$PREP_DIR/ios-arm64/"
 strip -x "$PREP_DIR/ios-arm64/libspeechmarkdown_rust.a"
 cp "$REPO_ROOT/bindings/speechmarkdown.h" "$PREP_DIR/ios-arm64/"
-cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/shim.h" "$PREP_DIR/ios-arm64/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/include/shim.h" "$PREP_DIR/ios-arm64/"
 cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/module.modulemap" "$PREP_DIR/ios-arm64/"
 
 # iOS simulator (arm64)
@@ -47,7 +47,7 @@ mkdir -p "$PREP_DIR/ios-arm64-sim"
 cp "$REPO_ROOT/target/aarch64-apple-ios-sim/release/libspeechmarkdown_rust.a" "$PREP_DIR/ios-arm64-sim/"
 strip -x "$PREP_DIR/ios-arm64-sim/libspeechmarkdown_rust.a"
 cp "$REPO_ROOT/bindings/speechmarkdown.h" "$PREP_DIR/ios-arm64-sim/"
-cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/shim.h" "$PREP_DIR/ios-arm64-sim/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/include/shim.h" "$PREP_DIR/ios-arm64-sim/"
 cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/module.modulemap" "$PREP_DIR/ios-arm64-sim/"
 
 rm -rf "$PREP_DIR/SpeechMarkdownRust.xcframework"

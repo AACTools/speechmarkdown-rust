@@ -14,8 +14,14 @@ let package = Package(
             checksum: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         ),
         .target(
-            name: "SpeechMarkdown",
+            name: "CSpeechMarkdown",
             dependencies: ["SpeechMarkdownRust"],
+            path: "bindings/swift/Sources/CSpeechMarkdown",
+            publicHeadersPath: "include"
+        ),
+        .target(
+            name: "SpeechMarkdown",
+            dependencies: ["CSpeechMarkdown", "SpeechMarkdownRust"],
             path: "bindings/swift/Sources/SpeechMarkdown"
         ),
     ]

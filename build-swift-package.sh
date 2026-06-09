@@ -24,37 +24,40 @@ echo "Preparing XCFramework..."
 PREP_DIR=$(mktemp -d)
 
 # macOS universal (arm64 + x86_64)
-mkdir -p "$PREP_DIR/macos-arm64_x86_64"
+mkdir -p "$PREP_DIR/macos-arm64_x86_64/lib"
+mkdir -p "$PREP_DIR/macos-arm64_x86_64/headers"
 lipo -create \
     "$REPO_ROOT/target/aarch64-apple-darwin/release/libspeechmarkdown_rust.a" \
     "$REPO_ROOT/target/x86_64-apple-darwin/release/libspeechmarkdown_rust.a" \
-    -output "$PREP_DIR/macos-arm64_x86_64/libspeechmarkdown_rust.a"
-strip -x "$PREP_DIR/macos-arm64_x86_64/libspeechmarkdown_rust.a"
-cp "$REPO_ROOT/bindings/speechmarkdown.h" "$PREP_DIR/macos-arm64_x86_64/"
-cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/include/shim.h" "$PREP_DIR/macos-arm64_x86_64/"
-cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/module.modulemap" "$PREP_DIR/macos-arm64_x86_64/"
+    -output "$PREP_DIR/macos-arm64_x86_64/lib/libspeechmarkdown_rust.a"
+strip -x "$PREP_DIR/macos-arm64_x86_64/lib/libspeechmarkdown_rust.a"
+cp "$REPO_ROOT/bindings/speechmarkdown.h" "$PREP_DIR/macos-arm64_x86_64/headers/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/include/shim.h" "$PREP_DIR/macos-arm64_x86_64/headers/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/module.modulemap" "$PREP_DIR/macos-arm64_x86_64/headers/"
 
 # iOS device (arm64)
-mkdir -p "$PREP_DIR/ios-arm64"
-cp "$REPO_ROOT/target/aarch64-apple-ios/release/libspeechmarkdown_rust.a" "$PREP_DIR/ios-arm64/"
-strip -x "$PREP_DIR/ios-arm64/libspeechmarkdown_rust.a"
-cp "$REPO_ROOT/bindings/speechmarkdown.h" "$PREP_DIR/ios-arm64/"
-cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/include/shim.h" "$PREP_DIR/ios-arm64/"
-cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/module.modulemap" "$PREP_DIR/ios-arm64/"
+mkdir -p "$PREP_DIR/ios-arm64/lib"
+mkdir -p "$PREP_DIR/ios-arm64/headers"
+cp "$REPO_ROOT/target/aarch64-apple-ios/release/libspeechmarkdown_rust.a" "$PREP_DIR/ios-arm64/lib/"
+strip -x "$PREP_DIR/ios-arm64/lib/libspeechmarkdown_rust.a"
+cp "$REPO_ROOT/bindings/speechmarkdown.h" "$PREP_DIR/ios-arm64/headers/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/include/shim.h" "$PREP_DIR/ios-arm64/headers/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/module.modulemap" "$PREP_DIR/ios-arm64/headers/"
 
 # iOS simulator (arm64)
-mkdir -p "$PREP_DIR/ios-arm64-sim"
-cp "$REPO_ROOT/target/aarch64-apple-ios-sim/release/libspeechmarkdown_rust.a" "$PREP_DIR/ios-arm64-sim/"
-strip -x "$PREP_DIR/ios-arm64-sim/libspeechmarkdown_rust.a"
-cp "$REPO_ROOT/bindings/speechmarkdown.h" "$PREP_DIR/ios-arm64-sim/"
-cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/include/shim.h" "$PREP_DIR/ios-arm64-sim/"
-cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/module.modulemap" "$PREP_DIR/ios-arm64-sim/"
+mkdir -p "$PREP_DIR/ios-arm64-sim/lib"
+mkdir -p "$PREP_DIR/ios-arm64-sim/headers"
+cp "$REPO_ROOT/target/aarch64-apple-ios-sim/release/libspeechmarkdown_rust.a" "$PREP_DIR/ios-arm64-sim/lib/"
+strip -x "$PREP_DIR/ios-arm64-sim/lib/libspeechmarkdown_rust.a"
+cp "$REPO_ROOT/bindings/speechmarkdown.h" "$PREP_DIR/ios-arm64-sim/headers/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/include/shim.h" "$PREP_DIR/ios-arm64-sim/headers/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/module.modulemap" "$PREP_DIR/ios-arm64-sim/headers/"
 
 rm -rf "$PREP_DIR/SpeechMarkdownRust.xcframework"
 xcodebuild -create-xcframework \
-    -library "$PREP_DIR/macos-arm64_x86_64/libspeechmarkdown_rust.a" -headers "$PREP_DIR/macos-arm64_x86_64/" \
-    -library "$PREP_DIR/ios-arm64/libspeechmarkdown_rust.a" -headers "$PREP_DIR/ios-arm64/" \
-    -library "$PREP_DIR/ios-arm64-sim/libspeechmarkdown_rust.a" -headers "$PREP_DIR/ios-arm64-sim/" \
+    -library "$PREP_DIR/macos-arm64_x86_64/lib/libspeechmarkdown_rust.a" -headers "$PREP_DIR/macos-arm64_x86_64/headers/" \
+    -library "$PREP_DIR/ios-arm64/lib/libspeechmarkdown_rust.a" -headers "$PREP_DIR/ios-arm64/headers/" \
+    -library "$PREP_DIR/ios-arm64-sim/lib/libspeechmarkdown_rust.a" -headers "$PREP_DIR/ios-arm64-sim/headers/" \
     -output "$PREP_DIR/SpeechMarkdownRust.xcframework"
 
 echo "Assembling Swift package..."

@@ -366,31 +366,34 @@ jobs:
           PREP=$(mktemp -d)
 
           # macOS universal (arm64 + x86_64)
-          mkdir -p "$PREP/macos-arm64_x86_64"
+          mkdir -p "$PREP/macos-arm64_x86_64/lib"
+          mkdir -p "$PREP/macos-arm64_x86_64/headers"
           lipo -create \
             target/aarch64-apple-darwin/release/libspeechmarkdown_rust.a \
             target/x86_64-apple-darwin/release/libspeechmarkdown_rust.a \
-            -output "$PREP/macos-arm64_x86_64/libspeechmarkdown_rust.a"
-          strip -x "$PREP/macos-arm64_x86_64/libspeechmarkdown_rust.a"
-          cp bindings/speechmarkdown.h bindings/swift/Sources/CSpeechMarkdown/shim.h bindings/swift/Sources/CSpeechMarkdown/module.modulemap "$PREP/macos-arm64_x86_64/"
+            -output "$PREP/macos-arm64_x86_64/lib/libspeechmarkdown_rust.a"
+          strip -x "$PREP/macos-arm64_x86_64/lib/libspeechmarkdown_rust.a"
+          cp bindings/speechmarkdown.h bindings/swift/Sources/CSpeechMarkdown/include/shim.h bindings/swift/Sources/CSpeechMarkdown/module.modulemap "$PREP/macos-arm64_x86_64/headers/"
 
           # iOS device (arm64)
-          mkdir -p "$PREP/ios-arm64"
-          cp target/aarch64-apple-ios/release/libspeechmarkdown_rust.a "$PREP/ios-arm64/"
-          strip -x "$PREP/ios-arm64/libspeechmarkdown_rust.a"
-          cp bindings/speechmarkdown.h bindings/swift/Sources/CSpeechMarkdown/shim.h bindings/swift/Sources/CSpeechMarkdown/module.modulemap "$PREP/ios-arm64/"
+          mkdir -p "$PREP/ios-arm64/lib"
+          mkdir -p "$PREP/ios-arm64/headers"
+          cp target/aarch64-apple-ios/release/libspeechmarkdown_rust.a "$PREP/ios-arm64/lib/"
+          strip -x "$PREP/ios-arm64/lib/libspeechmarkdown_rust.a"
+          cp bindings/speechmarkdown.h bindings/swift/Sources/CSpeechMarkdown/include/shim.h bindings/swift/Sources/CSpeechMarkdown/module.modulemap "$PREP/ios-arm64/headers/"
 
           # iOS simulator (arm64)
-          mkdir -p "$PREP/ios-arm64-sim"
-          cp target/aarch64-apple-ios-sim/release/libspeechmarkdown_rust.a "$PREP/ios-arm64-sim/"
-          strip -x "$PREP/ios-arm64-sim/libspeechmarkdown_rust.a"
-          cp bindings/speechmarkdown.h bindings/swift/Sources/CSpeechMarkdown/shim.h bindings/swift/Sources/CSpeechMarkdown/module.modulemap "$PREP/ios-arm64-sim/"
+          mkdir -p "$PREP/ios-arm64-sim/lib"
+          mkdir -p "$PREP/ios-arm64-sim/headers"
+          cp target/aarch64-apple-ios-sim/release/libspeechmarkdown_rust.a "$PREP/ios-arm64-sim/lib/"
+          strip -x "$PREP/ios-arm64-sim/lib/libspeechmarkdown_rust.a"
+          cp bindings/speechmarkdown.h bindings/swift/Sources/CSpeechMarkdown/include/shim.h bindings/swift/Sources/CSpeechMarkdown/module.modulemap "$PREP/ios-arm64-sim/headers/"
 
           # Create multi-platform XCFramework
           xcodebuild -create-xcframework \
-            -library "$PREP/macos-arm64_x86_64/libspeechmarkdown_rust.a" -headers "$PREP/macos-arm64_x86_64/" \
-            -library "$PREP/ios-arm64/libspeechmarkdown_rust.a" -headers "$PREP/ios-arm64/" \
-            -library "$PREP/ios-arm64-sim/libspeechmarkdown_rust.a" -headers "$PREP/ios-arm64-sim/" \
+            -library "$PREP/macos-arm64_x86_64/lib/libspeechmarkdown_rust.a" -headers "$PREP/macos-arm64_x86_64/headers/" \
+            -library "$PREP/ios-arm64/lib/libspeechmarkdown_rust.a" -headers "$PREP/ios-arm64/headers/" \
+            -library "$PREP/ios-arm64-sim/lib/libspeechmarkdown_rust.a" -headers "$PREP/ios-arm64-sim/headers/" \
             -output "$PREP/SpeechMarkdownRust.xcframework"
 
           # Assemble Swift package

@@ -10,8 +10,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "SpeechMarkdownRust",
-            url: "https://github.com/AACTools/speechmarkdown-rust/releases/download/v0.2.4/SpeechMarkdownRust.xcframework.zip",
-            checksum: "01deff3a7b7ac8bc6d1abaf1d68c37be2784452f538531465837a83a2eb7f800"
+            url: "https://github.com/AACTools/speechmarkdown-rust/releases/download/v0.2.5/SpeechMarkdownRust.xcframework.zip",
+            checksum: "a9b335102d67e85b0b25572d98792e2a185443c971da6b25f3e6913ea68d5038"
         ),
         .target(
             name: "CSpeechMarkdown",

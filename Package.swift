@@ -22,7 +22,10 @@ let package = Package(
         .target(
             name: "SpeechMarkdown",
             dependencies: ["CSpeechMarkdown"],
-            path: "bindings/swift/Sources/SpeechMarkdown"
+            path: "bindings/swift/Sources/SpeechMarkdown",
+            linkerSettings: [
+                .linkedLibrary("speechmarkdown_rust")
+            ]
         ),
     ]
 )

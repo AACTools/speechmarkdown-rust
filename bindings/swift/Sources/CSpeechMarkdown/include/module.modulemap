@@ -1,5 +1,4 @@
 module CSpeechMarkdown {
     header "shim.h"
-    link "speechmarkdown_rust"
     export *
 }

@@ -16,7 +16,8 @@ let package = Package(
         .target(
             name: "CSpeechMarkdown",
             dependencies: ["SpeechMarkdownRust"],
-            path: "bindings/swift/Sources/CSpeechMarkdown"
+            path: "bindings/swift/Sources/CSpeechMarkdown",
+            publicHeadersPath: "include"
         ),
         .target(
             name: "SpeechMarkdown",

@@ -11,7 +11,7 @@ let package = Package(
         .binaryTarget(
             name: "SpeechMarkdownRust",
             url: "https://github.com/AACTools/speechmarkdown-rust/releases/download/v0.2.9/SpeechMarkdownRust.xcframework.zip",
-            checksum: "8e51225efc56ae4f1053531fce27e19639855257377057af14a4ba7605b72825"
+            checksum: "837e830c4337d882a76e7db558b5c1d1c7fca425470aea4ac1d431d3f11e5f4a"
         ),
         .target(
             name: "CSpeechMarkdown",

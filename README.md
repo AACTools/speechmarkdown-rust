@@ -2,6 +2,32 @@
 
 High-performance SpeechMarkdown parser written in Rust. Converts [SpeechMarkdown](https://speechmarkdown.com/) syntax to platform-specific SSML for Amazon Alexa, Google Assistant, Microsoft Azure, and more.
 
+## Repository Structure
+
+This repository contains the core Rust SpeechMarkdown parser with bindings for multiple languages:
+
+```
+speechmarkdown-rust/
+├── src/                      # Core Rust library (language-agnostic)
+├── bindings/                 # Language-specific bindings
+│   ├── python/               # Python bindings via PyO3
+│   ├── nodejs/               # Node.js bindings via napi-rs
+│   ├── dotnet/               # .NET bindings via rust-cpp
+│   └── swift/                # Swift bindings via C API + SPM
+├── Package.swift             # Swift Package Manager configuration (Swift-only)
+├── build-swift-package.sh    # Swift package build script (Swift-only)
+└── Cargo.toml                # Rust package configuration
+```
+
+**Important Notes for Non-Swift Users:**
+
+- **Swift-specific files are ignored by other build systems**: `Package.swift`, `build-swift-package.sh`, and `swift-package-dist/` are only used by Swift Package Manager. They do not affect Rust, Python, Node.js, or .NET builds.
+- **Core Rust library unchanged**: The `src/` directory and `Cargo.toml` remain the single source of truth for the SpeechMarkdown parser across all languages.
+- **Isolated language bindings**: Each language in `bindings/` has its own build configuration and doesn't interfere with others.
+
+**For Rust/.NET/Python/Node.js Developers:**
+You can safely ignore Swift-specific files. Your respective package managers (Cargo, NuGet, PyPI, npm) only use the core library and your language's binding directory.
+
 ## Install
 
 | Language | Package | Install |
@@ -195,6 +221,10 @@ const char* err = speechmarkdown_get_error();
 
 ## Building from Source
 
+### Core Rust Library
+
+The core Rust parser is built with:
+
 ```bash
 cargo build --release
 ```
@@ -203,6 +233,53 @@ This produces:
 - **Windows**: `target/release/speechmarkdown_rust.dll`
 - **macOS**: `target/release/libspeechmarkdown_rust.dylib`
 - **Linux**: `target/release/libspeechmarkdown_rust.so`
+
+### Language-Specific Builds
+
+Each language binding has its own build process:
+
+**Python:**
+```bash
+cd bindings/python
+maturin develop
+# or for release: maturin build --release
+```
+
+**Node.js:**
+```bash
+cd bindings/nodejs
+npm install
+npm run build
+```
+
+**.NET:**
+```bash
+cd bindings/dotnet
+dotnet build
+```
+
+**Swift:**
+```bash
+# Uses pre-built XCFramework from releases
+# Or build from source:
+./build-swift-package.sh
+```
+
+## Development Workflow
+
+The repository follows a unified development model where all language bindings share the same core Rust parser:
+
+1. **Core changes**: Modify `src/` for parser logic changes
+2. **Language changes**: Modify `bindings/<language>/` for binding-specific changes
+3. **Testing**: Each language has its own test suite
+4. **Releases**: All packages are released together with version synchronization
+
+**For Contributors:**
+- Rust developers: Work in `src/` and test with `cargo test`
+- Python developers: Work in `bindings/python/` and test with `pytest`
+- Node.js developers: Work in `bindings/nodejs/` and test with `npm test`
+- .NET developers: Work in `bindings/dotnet/` and test with `dotnet test`
+- Swift developers: Work in `bindings/swift/` and use SPM for testing
 
 ## License
 

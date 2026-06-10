@@ -468,10 +468,10 @@ jobs:
         run: cd swift-package-dist && swift test
       - name: Package full Swift package
         run: cd swift-package-dist && zip -r "$GITHUB_WORKSPACE/speechmarkdown-swift-package.zip" .
-      - name: Package standalone XCFramework
+      - name: Package standalone XCFramework (deterministic zip)
         run: |
           cd swift-package-dist/SpeechMarkdownRust.xcframework
-          zip -r "$GITHUB_WORKSPACE/SpeechMarkdownRust.xcframework.zip" .
+          find . -type f | sort | xargs zip -X -r "$GITHUB_WORKSPACE/SpeechMarkdownRust.xcframework.zip"
       - name: Compute checksum
         id: checksum
         run: |
@@ -503,13 +503,13 @@ jobs:
         with:
           name: xcframework-zip
           path: .
-      - name: Upload release assets
+      - name: Upload release assets (skip if already exist)
         uses: softprops/action-gh-release@v2
         with:
           files: |
             speechmarkdown-swift-package.zip
             SpeechMarkdownRust.xcframework.zip
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
 
   update-spm-package:
     name: Update SPM Package.swift
@@ -525,15 +525,11 @@ jobs:
           CHECKSUM="${{ needs.build-swift.outputs.checksum }}"
           sed -i "s|url: \".*SpeechMarkdownRust.xcframework.zip\"|url: \"https://github.com/AACTools/speechmarkdown-rust/releases/download/v${VERSION}/SpeechMarkdownRust.xcframework.zip\"|" Package.swift
           sed -i "s|checksum: \".*\"|checksum: \"${CHECKSUM}\"|" Package.swift
-      - name: Push to spm branch
+      - name: Push to master
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -B spm
+          git checkout -B master origin/master
           git add Package.swift
           git diff --cached --quiet || git commit -m "Update SPM binary target for ${GITHUB_REF_NAME}"
-          git push origin spm --force
-          # Also update master so the tag's Package.swift matches
-          git checkout master
-          git merge spm --no-edit || true
           git push origin master

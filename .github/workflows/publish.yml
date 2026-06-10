@@ -525,7 +525,7 @@ jobs:
           CHECKSUM="${{ needs.build-swift.outputs.checksum }}"
           sed -i "s|url: \".*SpeechMarkdownRust.xcframework.zip\"|url: \"https://github.com/AACTools/speechmarkdown-rust/releases/download/v${VERSION}/SpeechMarkdownRust.xcframework.zip\"|" Package.swift
           sed -i "s|checksum: \".*\"|checksum: \"${CHECKSUM}\"|" Package.swift
-      - name: Push to master
+      - name: Push to master and retag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -534,3 +534,7 @@ jobs:
           git add Package.swift
           git diff --cached --quiet || git commit -m "Update SPM binary target for ${GITHUB_REF_NAME}"
           git push origin master
+          # Retag so the tag points to the updated commit
+          TAG="${GITHUB_REF_NAME}"
+          git tag -f "$TAG"
+          git push origin "$TAG" --force

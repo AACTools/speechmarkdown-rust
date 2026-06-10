@@ -529,6 +529,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin master
           git checkout -B master origin/master
           git add Package.swift
           git diff --cached --quiet || git commit -m "Update SPM binary target for ${GITHUB_REF_NAME}"

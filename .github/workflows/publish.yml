@@ -353,6 +353,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: "aarch64-apple-darwin,x86_64-apple-darwin,aarch64-apple-ios,aarch64-apple-ios-sim"
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: "aarch64-apple-visionos,aarch64-apple-visionos-sim"
       - name: Build Rust (macOS Apple Silicon)
         run: cargo build --release --target aarch64-apple-darwin
       - name: Build Rust (macOS Intel)
@@ -361,6 +364,10 @@ jobs:
         run: cargo build --release --target aarch64-apple-ios
       - name: Build Rust (iOS simulator)
         run: cargo build --release --target aarch64-apple-ios-sim
+      - name: Build Rust (visionOS device)
+        run: rustup run nightly cargo build --release --target aarch64-apple-visionos
+      - name: Build Rust (visionOS simulator)
+        run: rustup run nightly cargo build --release --target aarch64-apple-visionos-sim
       - name: Assemble XCFramework and Swift package
         run: |
           PREP=$(mktemp -d)
@@ -386,11 +393,25 @@ jobs:
           strip -x "$PREP/ios-arm64-sim/libspeechmarkdown_rust.a"
           cp bindings/speechmarkdown.h bindings/swift/Sources/CSpeechMarkdown/include/shim.h bindings/swift/Sources/CSpeechMarkdown/module.modulemap "$PREP/ios-arm64-sim/"
 
+          # visionOS device (arm64)
+          mkdir -p "$PREP/xros-arm64"
+          cp target/aarch64-apple-visionos/release/libspeechmarkdown_rust.a "$PREP/xros-arm64/"
+          strip -x "$PREP/xros-arm64/libspeechmarkdown_rust.a"
+          cp bindings/speechmarkdown.h bindings/swift/Sources/CSpeechMarkdown/include/shim.h bindings/swift/Sources/CSpeechMarkdown/module.modulemap "$PREP/xros-arm64/"
+
+          # visionOS simulator (arm64)
+          mkdir -p "$PREP/xros-arm64-sim"
+          cp target/aarch64-apple-visionos-sim/release/libspeechmarkdown_rust.a "$PREP/xros-arm64-sim/"
+          strip -x "$PREP/xros-arm64-sim/libspeechmarkdown_rust.a"
+          cp bindings/speechmarkdown.h bindings/swift/Sources/CSpeechMarkdown/include/shim.h bindings/swift/Sources/CSpeechMarkdown/module.modulemap "$PREP/xros-arm64-sim/"
+
           # Create multi-platform XCFramework
           xcodebuild -create-xcframework \
             -library "$PREP/macos-arm64_x86_64/libspeechmarkdown_rust.a" -headers "$PREP/macos-arm64_x86_64/" \
             -library "$PREP/ios-arm64/libspeechmarkdown_rust.a" -headers "$PREP/ios-arm64/" \
             -library "$PREP/ios-arm64-sim/libspeechmarkdown_rust.a" -headers "$PREP/ios-arm64-sim/" \
+            -library "$PREP/xros-arm64/libspeechmarkdown_rust.a" -headers "$PREP/xros-arm64/" \
+            -library "$PREP/xros-arm64-sim/libspeechmarkdown_rust.a" -headers "$PREP/xros-arm64-sim/" \
             -output "$PREP/SpeechMarkdownRust.xcframework"
 
           # Assemble Swift package
@@ -408,7 +429,7 @@ jobs:
           import PackageDescription
           let package = Package(
               name: "SpeechMarkdown",
-              platforms: [.macOS(.v13), .iOS(.v16)],
+              platforms: [.macOS(.v13), .iOS(.v16), .visionOS(.v1)],
               products: [
                   .library(name: "SpeechMarkdown", targets: ["SpeechMarkdown"]),
               ],

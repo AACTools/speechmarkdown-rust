@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "SpeechMarkdown",
-    platforms: [.macOS(.v13), .iOS(.v16)],
+    platforms: [.macOS(.v13), .iOS(.v16), .visionOS(.v1)],
     products: [
         .library(name: "SpeechMarkdown", targets: ["SpeechMarkdown"]),
     ],

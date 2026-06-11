@@ -8,6 +8,9 @@ DIST_DIR="$REPO_ROOT/swift-package-dist"
 echo "Installing iOS targets..."
 rustup target add aarch64-apple-ios aarch64-apple-ios-sim 2>/dev/null || true
 
+echo "Installing visionOS targets..."
+rustup target add aarch64-apple-visionos aarch64-apple-visionos-sim --toolchain nightly 2>/dev/null || true
+
 echo "Building Rust library for macOS (Apple Silicon)..."
 cargo build --release --target aarch64-apple-darwin --manifest-path "$REPO_ROOT/Cargo.toml"
 
@@ -20,6 +23,12 @@ cargo build --release --target aarch64-apple-ios --manifest-path "$REPO_ROOT/Car
 echo "Building Rust library for iOS simulator..."
 cargo build --release --target aarch64-apple-ios-sim --manifest-path "$REPO_ROOT/Cargo.toml"
 
+echo "Building Rust library for visionOS device..."
+rustup run nightly cargo build --release --target aarch64-apple-visionos --manifest-path "$REPO_ROOT/Cargo.toml"
+
+echo "Building Rust library for visionOS simulator..."
+rustup run nightly cargo build --release --target aarch64-apple-visionos-sim --manifest-path "$REPO_ROOT/Cargo.toml"
+
 echo "Preparing XCFramework..."
 PREP_DIR=$(mktemp -d)
 
@@ -31,7 +40,7 @@ lipo -create \
     -output "$PREP_DIR/macos-arm64_x86_64/libspeechmarkdown_rust.a"
 strip -x "$PREP_DIR/macos-arm64_x86_64/libspeechmarkdown_rust.a"
 cp "$REPO_ROOT/bindings/speechmarkdown.h" "$PREP_DIR/macos-arm64_x86_64/"
-cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/shim.h" "$PREP_DIR/macos-arm64_x86_64/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/include/shim.h" "$PREP_DIR/macos-arm64_x86_64/"
 cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/module.modulemap" "$PREP_DIR/macos-arm64_x86_64/"
 
 # iOS device (arm64)
@@ -39,7 +48,7 @@ mkdir -p "$PREP_DIR/ios-arm64"
 cp "$REPO_ROOT/target/aarch64-apple-ios/release/libspeechmarkdown_rust.a" "$PREP_DIR/ios-arm64/"
 strip -x "$PREP_DIR/ios-arm64/libspeechmarkdown_rust.a"
 cp "$REPO_ROOT/bindings/speechmarkdown.h" "$PREP_DIR/ios-arm64/"
-cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/shim.h" "$PREP_DIR/ios-arm64/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/include/shim.h" "$PREP_DIR/ios-arm64/"
 cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/module.modulemap" "$PREP_DIR/ios-arm64/"
 
 # iOS simulator (arm64)
@@ -47,14 +56,32 @@ mkdir -p "$PREP_DIR/ios-arm64-sim"
 cp "$REPO_ROOT/target/aarch64-apple-ios-sim/release/libspeechmarkdown_rust.a" "$PREP_DIR/ios-arm64-sim/"
 strip -x "$PREP_DIR/ios-arm64-sim/libspeechmarkdown_rust.a"
 cp "$REPO_ROOT/bindings/speechmarkdown.h" "$PREP_DIR/ios-arm64-sim/"
-cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/shim.h" "$PREP_DIR/ios-arm64-sim/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/include/shim.h" "$PREP_DIR/ios-arm64-sim/"
 cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/module.modulemap" "$PREP_DIR/ios-arm64-sim/"
+
+# visionOS device (arm64)
+mkdir -p "$PREP_DIR/xros-arm64"
+cp "$REPO_ROOT/target/aarch64-apple-visionos/release/libspeechmarkdown_rust.a" "$PREP_DIR/xros-arm64/"
+strip -x "$PREP_DIR/xros-arm64/libspeechmarkdown_rust.a"
+cp "$REPO_ROOT/bindings/speechmarkdown.h" "$PREP_DIR/xros-arm64/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/include/shim.h" "$PREP_DIR/xros-arm64/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/module.modulemap" "$PREP_DIR/xros-arm64/"
+
+# visionOS simulator (arm64)
+mkdir -p "$PREP_DIR/xros-arm64-sim"
+cp "$REPO_ROOT/target/aarch64-apple-visionos-sim/release/libspeechmarkdown_rust.a" "$PREP_DIR/xros-arm64-sim/"
+strip -x "$PREP_DIR/xros-arm64-sim/libspeechmarkdown_rust.a"
+cp "$REPO_ROOT/bindings/speechmarkdown.h" "$PREP_DIR/xros-arm64-sim/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/include/shim.h" "$PREP_DIR/xros-arm64-sim/"
+cp "$REPO_ROOT/bindings/swift/Sources/CSpeechMarkdown/module.modulemap" "$PREP_DIR/xros-arm64-sim/"
 
 rm -rf "$PREP_DIR/SpeechMarkdownRust.xcframework"
 xcodebuild -create-xcframework \
     -library "$PREP_DIR/macos-arm64_x86_64/libspeechmarkdown_rust.a" -headers "$PREP_DIR/macos-arm64_x86_64/" \
     -library "$PREP_DIR/ios-arm64/libspeechmarkdown_rust.a" -headers "$PREP_DIR/ios-arm64/" \
     -library "$PREP_DIR/ios-arm64-sim/libspeechmarkdown_rust.a" -headers "$PREP_DIR/ios-arm64-sim/" \
+    -library "$PREP_DIR/xros-arm64/libspeechmarkdown_rust.a" -headers "$PREP_DIR/xros-arm64/" \
+    -library "$PREP_DIR/xros-arm64-sim/libspeechmarkdown_rust.a" -headers "$PREP_DIR/xros-arm64-sim/" \
     -output "$PREP_DIR/SpeechMarkdownRust.xcframework"
 
 echo "Assembling Swift package..."
@@ -71,7 +98,7 @@ import PackageDescription
 
 let package = Package(
     name: "SpeechMarkdown",
-    platforms: [.macOS(.v13), .iOS(.v16)],
+    platforms: [.macOS(.v13), .iOS(.v16), .visionOS(.v1)],
     products: [
         .library(name: "SpeechMarkdown", targets: ["SpeechMarkdown"]),
     ],

@@ -352,11 +352,7 @@ jobs:
           path: .
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: "aarch64-apple-darwin,x86_64-apple-darwin,aarch64-apple-ios,aarch64-apple-ios-sim"
-      - name: Install nightly for visionOS
-        run: |
-          rustup toolchain install nightly
-          rustup target add --toolchain nightly aarch64-apple-visionos aarch64-apple-visionos-sim
+          targets: "aarch64-apple-darwin,x86_64-apple-darwin,aarch64-apple-ios,aarch64-apple-ios-sim,aarch64-apple-visionos,aarch64-apple-visionos-sim"
       - name: Build Rust (macOS Apple Silicon)
         run: cargo build --release --target aarch64-apple-darwin
       - name: Build Rust (macOS Intel)
@@ -366,9 +362,9 @@ jobs:
       - name: Build Rust (iOS simulator)
         run: cargo build --release --target aarch64-apple-ios-sim
       - name: Build Rust (visionOS device)
-        run: rustup run nightly cargo build --release --target aarch64-apple-visionos
+        run: cargo build --release --target aarch64-apple-visionos
       - name: Build Rust (visionOS simulator)
-        run: rustup run nightly cargo build --release --target aarch64-apple-visionos-sim
+        run: cargo build --release --target aarch64-apple-visionos-sim
       - name: Assemble XCFramework and Swift package
         run: |
           PREP=$(mktemp -d)

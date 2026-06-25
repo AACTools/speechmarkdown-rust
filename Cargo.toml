@@ -15,6 +15,11 @@ quick-xml = "0.37"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
+ipa-translate = { version = "0.2", optional = true }
+
+[features]
+default = ["phonetic-translation"]
+phonetic-translation = ["dep:ipa-translate"]
 
 [dev-dependencies]
 # Removed problematic benchmark dependencies for now

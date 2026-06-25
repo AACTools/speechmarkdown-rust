@@ -600,6 +600,14 @@ impl SsmlFormatterBase {
                 }
                 attrs
             })),
+            "xsampa" | "praat" | "sil" | "branner" => {
+                let translated = translate_to_ipa(&key.to_lowercase(), value)?;
+                let mut attrs = vec![("alphabet".to_string(), "ipa".to_string())];
+                if !translated.is_empty() {
+                    attrs.push(("ph".to_string(), translated));
+                }
+                Some(("phoneme".to_string(), attrs))
+            }
             "sub" => {
                 if !value.is_empty() {
                     attributes.push(("alias".to_string(), value.to_string()));
@@ -735,6 +743,33 @@ impl SsmlFormatterBase {
     }
 }
 
+/// Translate a phonetic-alphabet value to IPA.
+///
+/// Recognized keys (lowercase): `xsampa`, `praat`, `sil`, `branner`. Returns
+/// `None` for any unrecognized key, or for every key when the
+/// `phonetic-translation` feature is disabled — callers treat `None` as
+/// "drop this modifier."
+///
+/// Conversion is infallible (garbage in, garbage out) per the upstream crate.
+#[cfg(feature = "phonetic-translation")]
+pub fn translate_to_ipa(key: &str, value: &str) -> Option<String> {
+    if value.is_empty() {
+        return Some(String::new());
+    }
+    match key {
+        "xsampa" => Some(ipa_translate::xsampa_to_ipa(value)),
+        "praat" => Some(ipa_translate::praat_to_ipa(value)),
+        "sil" => Some(ipa_translate::sil_to_ipa(value)),
+        "branner" => Some(ipa_translate::branner_to_ipa(value)),
+        _ => None,
+    }
+}
+
+#[cfg(not(feature = "phonetic-translation"))]
+pub fn translate_to_ipa(_key: &str, _value: &str) -> Option<String> {
+    None
+}
+
 pub fn format_attr_string_ordered(tag_name: &str, attributes: &TagAttrs) -> String {
     let fixed_order: Vec<&str> = match tag_name {
         "say-as" => vec!["interpret-as", "format"],
@@ -787,5 +822,66 @@ impl Formatter for SsmlFormatterBase {
 
     fn format_node(&self, node: &AstNode) -> Result<String> {
         self.format_node_with_tags(node)
+    }
+}
+
+#[cfg(test)]
+mod phonetic_alphabet_tests {
+    use super::*;
+    use crate::formatters::base::FormatterOptions;
+
+    fn fmt() -> SsmlFormatterBase {
+        SsmlFormatterBase::new(FormatterOptions::default())
+    }
+
+    #[cfg(feature = "phonetic-translation")]
+    #[test]
+    fn xsampa_value_becomes_ipa_phoneme_tag() {
+        let (tag, attrs) = fmt().attribute_to_tag("xsampa", "spitS").unwrap();
+        assert_eq!(tag, "phoneme");
+        assert_eq!(attrs_get(&attrs, "alphabet"), Some("ipa"));
+        assert_eq!(attrs_get(&attrs, "ph"), Some("spitʃ"));
+    }
+
+    #[cfg(feature = "phonetic-translation")]
+    #[test]
+    fn praat_sil_branner_all_emit_ipa_phoneme() {
+        let cases = [
+            ("praat", r"p\rta\:ft\^h", "pɹaːtʰ"),
+            ("sil", "si=l", "sɪl"),
+            ("branner", "br&ae):nE&r^", "bɹæːnɜ˞"),
+        ];
+        for (key, src, expected_ipa) in cases {
+            let (tag, attrs) = fmt().attribute_to_tag(key, src).unwrap();
+            assert_eq!(tag, "phoneme", "key {}", key);
+            assert_eq!(attrs_get(&attrs, "alphabet"), Some("ipa"), "key {}", key);
+            assert_eq!(
+                attrs_get(&attrs, "ph"),
+                Some(expected_ipa),
+                "key {}",
+                key
+            );
+        }
+    }
+
+    #[cfg(not(feature = "phonetic-translation"))]
+    #[test]
+    fn phonetic_keys_dropped_when_feature_disabled() {
+        for key in ["xsampa", "praat", "sil", "branner"] {
+            assert!(
+                fmt().attribute_to_tag(key, "anything").is_none(),
+                "{} should be dropped without phonetic-translation feature",
+                key
+            );
+        }
+    }
+
+    #[cfg(feature = "phonetic-translation")]
+    #[test]
+    fn empty_value_emits_phoneme_without_ph_attr() {
+        let (tag, attrs) = fmt().attribute_to_tag("xsampa", "").unwrap();
+        assert_eq!(tag, "phoneme");
+        assert_eq!(attrs_get(&attrs, "alphabet"), Some("ipa"));
+        assert_eq!(attrs_get(&attrs, "ph"), None);
     }
 }

@@ -31,6 +31,21 @@ fn test_all_test_cases() {
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");
 
+        // Fixtures that exercise the phonetic-translation feature; only
+        // run them when that feature is on.
+        #[cfg(not(feature = "phonetic-translation"))]
+        if matches!(
+            test_name,
+            "xsampa-standard"
+                | "xsampa-stress"
+                | "praat-standard"
+                | "sil-standard"
+                | "branner-standard"
+                | "combo-xsampa-emphasis"
+        ) {
+            continue;
+        }
+
         // Read the .smd input file
         let smd_file = test_dir.join(format!("{}.smd", test_name));
         if !smd_file.exists() {

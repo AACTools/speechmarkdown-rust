@@ -26,7 +26,7 @@ impl GoogleAssistantSsmlFormatter {
             }
             "excited" | "disappointed" => None,
             "voice" | "lang" => None,
-            "ipa" => None,
+            "ipa" | "xsampa" | "praat" | "sil" | "branner" => None,
             "style" => {
                 if !value.is_empty() {
                     attributes.push(("name".to_string(), value.to_string()));
@@ -40,8 +40,8 @@ impl GoogleAssistantSsmlFormatter {
     fn format_google_text_modifier(&self, node: &AstNode) -> Result<String> {
         let mut tags: Vec<TagInfo> = Vec::new();
         let mut last_say_as: Option<TagInfo> = None;
-        let mut has_ipa = false;
-        let mut non_ipa_count = 0;
+        let mut phonetic_key: Option<String> = None;
+        let mut non_phonetic_count = 0;
 
         for key in &node.attribute_keys {
             let value = match node.attributes.get(key) {
@@ -49,10 +49,15 @@ impl GoogleAssistantSsmlFormatter {
                 None => continue,
             };
 
-            if key.to_lowercase() == "ipa" {
-                has_ipa = true;
+            if matches!(
+                key.to_lowercase().as_str(),
+                "ipa" | "xsampa" | "praat" | "sil" | "branner"
+            ) {
+                if phonetic_key.is_none() {
+                    phonetic_key = Some(key.clone());
+                }
             } else {
-                non_ipa_count += 1;
+                non_phonetic_count += 1;
             }
 
             if let Some(tag_info) = self.google_attribute_to_tag(key, value) {
@@ -71,15 +76,13 @@ impl GoogleAssistantSsmlFormatter {
             }
         }
 
-        if has_ipa && non_ipa_count == 0 {
+        if phonetic_key.is_some() && non_phonetic_count == 0 {
             return Ok(node.text.clone());
         }
 
-        if has_ipa {
-            if let Some(ipa_tag) = self
-                .base
-                .attribute_to_tag("ipa", node.attributes.get("ipa").unwrap_or(&String::new()))
-            {
+        if let Some(key) = phonetic_key {
+            let value = node.attributes.get(&key).cloned().unwrap_or_default();
+            if let Some(ipa_tag) = self.base.attribute_to_tag(&key, &value) {
                 tags.push(ipa_tag);
             }
         }

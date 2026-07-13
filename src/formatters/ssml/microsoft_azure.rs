@@ -416,11 +416,14 @@ impl Formatter for MicrosoftAzureSsmlFormatter {
             let use_mstts = trimmed.contains("mstts:express-as");
             if use_mstts {
                 Ok(format!(
-                    "<speak xmlns:mstts=\"https://www.w3.org/2001/mstts\">\n{}\n</speak>",
+                    "<speak version=\"1.0\" xmlns=\"http://www.w3.org/2001/10/synthesis\" xmlns:mstts=\"https://www.w3.org/2001/mstts\" xml:lang=\"en-US\">\n{}\n</speak>",
                     trimmed
                 ))
             } else {
-                Ok(format!("<speak>\n{}\n</speak>", trimmed))
+                Ok(format!(
+                    "<speak version=\"1.0\" xmlns=\"http://www.w3.org/2001/10/synthesis\" xml:lang=\"en-US\">\n{}\n</speak>",
+                    trimmed
+                ))
             }
         } else {
             Ok(content)

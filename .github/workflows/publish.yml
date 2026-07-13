@@ -537,18 +537,22 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Switch to master before editing
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin master
+          git checkout -B master origin/master
       - name: Update checksum in Package.swift
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           CHECKSUM="${{ needs.build-swift.outputs.checksum }}"
           sed -i "s|url: \".*SpeechMarkdownRust.xcframework.zip\"|url: \"https://github.com/AACTools/speechmarkdown-rust/releases/download/v${VERSION}/SpeechMarkdownRust.xcframework.zip\"|" Package.swift
           sed -i "s|checksum: \".*\"|checksum: \"${CHECKSUM}\"|" Package.swift
-      - name: Push to master and retag
+      - name: Commit, push, and retag
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin master
-          git checkout -B master origin/master
           git add Package.swift
           git diff --cached --quiet || git commit -m "Update SPM binary target for ${GITHUB_REF_NAME}"
           git push origin master

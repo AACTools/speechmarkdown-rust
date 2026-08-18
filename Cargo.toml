@@ -1,6 +1,6 @@
 [package]
 name = "speechmarkdown-rust"
-version = "0.4.12"
+version = "0.4.13"
 edition = "2021"
 authors = ["SpeechMarkdown Contributors"]
 description = "High-performance SpeechMarkdown parser with multi-language bindings"

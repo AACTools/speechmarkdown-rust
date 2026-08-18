@@ -215,6 +215,15 @@ impl MicrosoftAzureSsmlFormatter {
         match node.node_type {
             NodeType::PlainText => Ok(node.text.clone()),
             NodeType::TextModifier => self.format_azure_text_modifier(node),
+            // Azure's Speech service does not support the W3C SSML <mark>
+            // element: an utterance containing one synthesises zero audio,
+            // with no error from the service. Its documented equivalent is
+            // <bookmark mark="…"/> (fired as a Bookmark event instead of a
+            // named position).
+            NodeType::Mark => Ok(format!(
+                "<bookmark mark=\"{}\"/>",
+                self.base.escape_xml(&node.text)
+            )),
             _ => self.base.format_node_internal(node),
         }
     }
@@ -445,6 +454,23 @@ mod tests {
         let result =
             SpeechMarkdownParser::to_ssml(input, crate::formatters::base::Platform::MicrosoftAzure);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_microsoft_azure_mark_emits_bookmark() {
+        // Azure has no W3C <mark> (it silently synthesises zero audio);
+        // the documented equivalent is <bookmark mark="…"/>.
+        let input = "A [mark: \"b1\"] in the text.";
+        let result =
+            SpeechMarkdownParser::to_ssml(input, crate::formatters::base::Platform::MicrosoftAzure);
+        assert!(result.is_ok());
+
+        let ssml = result.unwrap();
+        assert!(ssml.contains("<bookmark mark=\"b1\"/>"), "got: {ssml}");
+        assert!(
+            !ssml.contains("<mark"),
+            "W3C mark must not be emitted: {ssml}"
+        );
     }
 
     #[test]

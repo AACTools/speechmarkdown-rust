@@ -16,6 +16,11 @@ const BREAK_STRENGTH_TO_DURATION: &[(&str, &str)] = &[
 
 const DEFAULT_BREAK_DURATION: &str = "0.5s";
 
+/// ElevenLabs pre-v3 models accept pauses up to 3 seconds; longer
+/// requested breaks are clamped (values beyond that are rejected or
+/// destabilize the generation).
+const MAX_BREAK_SECONDS: f64 = 3.0;
+
 /// ElevenLabs prompt markup for the pre-v3 model family
 /// (`eleven_multilingual_v2`, `eleven_flash_v2_5`, `eleven_flash_v2`,
 /// `eleven_turbo_v2`).
@@ -34,14 +39,34 @@ const DEFAULT_BREAK_DURATION: &str = "0.5s";
 /// `eleven_v3` models must use the audio-tag dialect instead
 /// (`Platform::ElevenLabsV3`): they do not parse `<break>` at all.
 pub struct ElevenLabsFormatter {
-    #[allow(dead_code)]
     preserve_empty_lines: bool,
 }
 
 impl ElevenLabsFormatter {
-    pub fn new(_options: FormatterOptions) -> Self {
+    pub fn new(options: FormatterOptions) -> Self {
         Self {
-            preserve_empty_lines: true,
+            preserve_empty_lines: options.preserve_empty_lines,
+        }
+    }
+
+    /// Parse a duration like "2", "0.25", "250ms", "1.5s" into seconds.
+    fn parse_seconds(text: &str) -> Option<f64> {
+        let body = text
+            .strip_suffix("ms")
+            .or_else(|| text.strip_suffix('s'))
+            .unwrap_or(text);
+        let value: f64 = body.parse().ok()?;
+        let scale = if text.ends_with("ms") { 0.001 } else { 1.0 };
+        Some(value * scale)
+    }
+
+    /// Break time verbatim when within the documented 3s limit; clamped
+    /// to 3s beyond it (keeping the caller's unit formatting otherwise,
+    /// matching the shared corpus fixtures which use both "3s" and "250ms").
+    fn clamp_break_time(time: &str) -> String {
+        match Self::parse_seconds(time) {
+            Some(secs) if secs > MAX_BREAK_SECONDS => format!("{MAX_BREAK_SECONDS}s"),
+            _ => time.to_string(),
         }
     }
 
@@ -58,6 +83,13 @@ impl ElevenLabsFormatter {
     /// (e.g. "[2s]" → "2s").
     fn break_time_from_text(text: &str) -> &str {
         text.trim_start_matches('[').trim_end_matches(']')
+    }
+
+    /// Escape a double-quoted attribute value. The prompt body stays
+    /// unescaped (ElevenLabs is not an XML document), but attribute
+    /// quotes would break the tag itself.
+    fn escape_attr(value: &str) -> String {
+        value.replace('"', "&quot;")
     }
 
     fn format_node_internal(&self, node: &AstNode, out: &mut String) -> Result<()> {
@@ -90,7 +122,7 @@ impl ElevenLabsFormatter {
             }
 
             NodeType::ShortBreak => {
-                let time = Self::break_time_from_text(&node.text);
+                let time = Self::clamp_break_time(Self::break_time_from_text(&node.text));
                 out.push_str(&format!("<break time=\"{}\"/>", time));
             }
 
@@ -116,7 +148,8 @@ impl ElevenLabsFormatter {
                 if let Some(ph) = phoneme.filter(|ph| !ph.is_empty()) {
                     out.push_str(&format!(
                         "<phoneme alphabet=\"ipa\" ph=\"{}\">{}</phoneme>",
-                        ph, node.text
+                        Self::escape_attr(ph),
+                        node.text
                     ));
                 } else {
                     out.push_str(&node.text);
@@ -128,7 +161,8 @@ impl ElevenLabsFormatter {
                 if let Some(ph) = phoneme.filter(|ph| !ph.is_empty()) {
                     out.push_str(&format!(
                         "<phoneme alphabet=\"ipa\" ph=\"{}\">{}</phoneme>",
-                        ph, node.text
+                        Self::escape_attr(ph),
+                        node.text
                     ));
                 } else {
                     out.push_str(&node.text);
@@ -217,6 +251,44 @@ mod tests {
         assert_eq!(to_elevenlabs("[break:\"none\"]"), "<break time=\"0s\"/>");
         // Unknown strength falls back to medium duration.
         assert_eq!(to_elevenlabs("[break:\"bogus\"]"), "<break time=\"0.5s\"/>");
+    }
+
+    #[test]
+    fn breaks_clamp_to_three_seconds() {
+        // Pre-v3 models accept at most 3s; longer values are rejected
+        // or destabilize the generation.
+        assert_eq!(
+            to_elevenlabs("Wait [10s] now"),
+            "Wait <break time=\"3s\"/> now"
+        );
+        assert_eq!(
+            to_elevenlabs("Wait [3500ms] now"),
+            "Wait <break time=\"3s\"/> now"
+        );
+        // Values within the limit keep the caller's unit formatting
+        // (the corpus fixtures pin both "3s" and "250ms").
+        assert_eq!(
+            to_elevenlabs("Wait [250ms] now"),
+            "Wait <break time=\"250ms\"/> now"
+        );
+    }
+
+    #[test]
+    fn malformed_break_numbers_are_not_breaks() {
+        // Not valid durations: plain text passthrough (matches the
+        // speechmarkdown-js grammar, which only accepts \d+(\.\d+)?(s|ms)).
+        for word in ["1.2.3s", "1..5s", "apps", "infs", "s"] {
+            let out = to_elevenlabs(&format!("x [{word}] y"));
+            assert_eq!(out, format!("x [{word}] y"), "word {word}");
+        }
+    }
+
+    #[test]
+    fn phoneme_attribute_quotes_are_escaped() {
+        assert_eq!(
+            to_elevenlabs("(x)[ipa:\"a\"b\"]"),
+            "<phoneme alphabet=\"ipa\" ph=\"a&quot;b\">x</phoneme>"
+        );
     }
 
     #[test]

@@ -19,7 +19,6 @@ use crate::formatters::base::{Formatter, FormatterOptions};
 /// - `#[style]` sections become prefix tags; unknown styles pass through
 ///   verbatim (v3 treats any bracketed cue as direction).
 pub struct ElevenLabsV3Formatter {
-    #[allow(dead_code)]
     preserve_empty_lines: bool,
 }
 
@@ -36,9 +35,9 @@ const BREAK_STRENGTH_TO_TAG: &[(&str, &str)] = &[
 const DEFAULT_PAUSE_TAG: &str = "[pause]";
 
 impl ElevenLabsV3Formatter {
-    pub fn new(_options: FormatterOptions) -> Self {
+    pub fn new(options: FormatterOptions) -> Self {
         Self {
-            preserve_empty_lines: true,
+            preserve_empty_lines: options.preserve_empty_lines,
         }
     }
 

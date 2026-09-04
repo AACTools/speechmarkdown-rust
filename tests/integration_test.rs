@@ -160,14 +160,16 @@ fn test_all_test_cases() {
         for test in &failed_tests {
             println!("  - {}", test);
         }
-    }
-
-    // Only panic if we have significant failures (>50% fail rate)
-    if failed > 0 && (failed as f64 / (passed + failed) as f64) > 0.5 {
+        // Zero tolerance: this suite is the regression net for the
+        // enforced fixture families (.txt, .alexa.ssml, .google.ssml,
+        // .elevenlabs.ssml). Any failure should fail CI — a lenient
+        // threshold would let a broken formatter slip through while
+        // enough unrelated cases still pass.
         panic!(
-            "Too many test failures: {}/{} failed",
+            "{}/{} corpus tests failed: {:?}",
             failed,
-            passed + failed
+            passed + failed,
+            failed_tests
         );
     }
 }

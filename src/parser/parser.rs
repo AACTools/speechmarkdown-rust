@@ -563,7 +563,12 @@ impl SpeechMarkdownParser {
         let Some(body) = s.strip_suffix("ms").or_else(|| s.strip_suffix('s')) else {
             return false;
         };
+        // Strict numeric body: digits with at most one decimal point.
+        // Rejects words ending in 's' ("apps"), malformed numbers
+        // ("1.2.3s"), and non-finite spellings ("nan"/"inf" fail the
+        // character filter).
         !body.is_empty()
+            && body.chars().filter(|&c| c == '.').count() <= 1
             && body.chars().any(|c| c.is_ascii_digit())
             && body.chars().all(|c| c.is_ascii_digit() || c == '.')
     }

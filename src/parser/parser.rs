@@ -560,7 +560,12 @@ impl SpeechMarkdownParser {
     }
 
     fn is_time_break(s: &str) -> bool {
-        s.ends_with("s") || s.ends_with("ms")
+        let Some(body) = s.strip_suffix("ms").or_else(|| s.strip_suffix('s')) else {
+            return false;
+        };
+        !body.is_empty()
+            && body.chars().any(|c| c.is_ascii_digit())
+            && body.chars().all(|c| c.is_ascii_digit() || c == '.')
     }
 
     fn is_expressive_tag(s: &str) -> bool {

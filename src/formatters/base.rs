@@ -105,6 +105,11 @@ pub fn create_formatter(platform: Platform, options: FormatterOptions) -> Box<dy
             // Use the base SSML formatter for W3C standard
             Box::new(super::ssml::SsmlFormatterBase::new(options))
         }
+        Platform::ElevenLabs => {
+            // Pre-v3 prompt markup: <break> tags (and flash-only <phoneme>),
+            // no SSML document, no escaping.
+            Box::new(super::elevenlabs::ElevenLabsFormatter::new(options))
+        }
         _ => Box::new(super::TextFormatter::new()),
     }
 }

@@ -116,6 +116,23 @@ fn test_all_test_cases() {
                     }
                 }
 
+                // Test prompt markup output for ElevenLabs (pre-v3 dialect)
+                let elevenlabs_file = test_dir.join(format!("{}.elevenlabs.ssml", test_name));
+                if elevenlabs_file.exists() {
+                    let expected = fs::read_to_string(&elevenlabs_file).unwrap_or_else(|_| {
+                        panic!("Failed to read ElevenLabs file: {:?}", elevenlabs_file)
+                    });
+
+                    let result = SpeechMarkdownParser::to_ssml(&input, Platform::ElevenLabs);
+                    if result.is_err() {
+                        all_checks_passed = false;
+                    } else if let Ok(actual) = result {
+                        if actual.trim() != normalize_line_endings(expected.trim()) {
+                            all_checks_passed = false;
+                        }
+                    }
+                }
+
                 all_checks_passed
             }
             Err(_e) => false,

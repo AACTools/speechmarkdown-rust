@@ -1,4 +1,5 @@
 pub mod base;
+pub mod elevenlabs;
 pub mod ssml;
 pub mod text;
 

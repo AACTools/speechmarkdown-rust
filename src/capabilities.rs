@@ -440,7 +440,9 @@ fn elevenlabs_capabilities() -> PlatformCapabilities {
             "mark (no equivalent)".into(),
             "voice (switch via the API voice_id parameter)".into(),
             "lang (no equivalent)".into(),
-            "audio tags (eleven_v3 only)".into(),
+            "audio tags (eleven_v3 only; pre-v3 models read them aloud — \
+             use the elevenlabs-v3 dialect)"
+                .into(),
             "amazon:effect".into(),
             "amazon:emotion".into(),
             "amazon:domain".into(),

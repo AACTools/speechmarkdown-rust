@@ -60,14 +60,27 @@ impl ElevenLabsFormatter {
         Some(value * scale)
     }
 
-    /// Break time verbatim when within the documented 3s limit; clamped
-    /// to 3s beyond it (keeping the caller's unit formatting otherwise,
-    /// matching the shared corpus fixtures which use both "3s" and "250ms").
-    fn clamp_break_time(time: &str) -> String {
+    /// Normalize a break duration to ElevenLabs' documented seconds
+    /// format ("Break time should be described in seconds"), clamped to
+    /// the 3s limit: "250ms" → "0.25s", "10s" → "3s", "1.5s" unchanged.
+    fn normalize_break_time(time: &str) -> String {
         match Self::parse_seconds(time) {
-            Some(secs) if secs > MAX_BREAK_SECONDS => format!("{MAX_BREAK_SECONDS}s"),
-            _ => time.to_string(),
+            Some(secs) => Self::format_seconds(secs.min(MAX_BREAK_SECONDS)),
+            None => time.to_string(),
         }
+    }
+
+    /// Format seconds without trailing zeros ("2s", "0.25s", "1.2s").
+    /// Three decimals cover millisecond precision.
+    fn format_seconds(secs: f64) -> String {
+        let mut s = format!("{secs:.3}");
+        while s.ends_with('0') {
+            s.pop();
+        }
+        if s.ends_with('.') {
+            s.pop();
+        }
+        format!("{s}s")
     }
 
     fn map_strength_to_time(strength: &str) -> String {
@@ -122,7 +135,7 @@ impl ElevenLabsFormatter {
             }
 
             NodeType::ShortBreak => {
-                let time = Self::clamp_break_time(Self::break_time_from_text(&node.text));
+                let time = Self::normalize_break_time(Self::break_time_from_text(&node.text));
                 out.push_str(&format!("<break time=\"{}\"/>", time));
             }
 
@@ -184,12 +197,11 @@ impl ElevenLabsFormatter {
             }
 
             // No pre-v3 equivalent: drop rather than speak a URL or
-            // emit markup the model would read aloud.
-            NodeType::Audio | NodeType::Mark => {}
-
-            NodeType::Expressive => {
-                out.push_str(&format!("[{}]", node.text));
-            }
+            // emit markup the model would read aloud. Expressive audio
+            // tags ([laugh], …) are v3-exclusive — pre-v3 models read
+            // them aloud as literal text — so they are dropped here and
+            // emitted only by the elevenlabs-v3 dialect.
+            NodeType::Audio | NodeType::Mark | NodeType::Expressive => {}
 
             // Modifier node types never appear standalone from the parser.
             _ => {}
@@ -225,7 +237,7 @@ mod tests {
     fn short_break_becomes_break_tag() {
         assert_eq!(
             to_elevenlabs("Sample [3s] speech [250ms] markdown"),
-            "Sample <break time=\"3s\"/> speech <break time=\"250ms\"/> markdown"
+            "Sample <break time=\"3s\"/> speech <break time=\"0.25s\"/> markdown"
         );
     }
 
@@ -233,7 +245,7 @@ mod tests {
     fn quoted_break_time_becomes_break_tag() {
         assert_eq!(
             to_elevenlabs("Sample [break:\"3s\"] speech [break:'250ms'] markdown"),
-            "Sample <break time=\"3s\"/> speech <break time=\"250ms\"/> markdown"
+            "Sample <break time=\"3s\"/> speech <break time=\"0.25s\"/> markdown"
         );
     }
 
@@ -253,9 +265,9 @@ mod tests {
     }
 
     #[test]
-    fn breaks_clamp_to_three_seconds() {
-        // Pre-v3 models accept at most 3s; longer values are rejected
-        // or destabilize the generation.
+    fn breaks_clamp_and_normalize_to_seconds() {
+        // Pre-v3 models accept at most 3s and the documented format is
+        // seconds ("Break time should be described in seconds").
         assert_eq!(
             to_elevenlabs("Wait [10s] now"),
             "Wait <break time=\"3s\"/> now"
@@ -264,11 +276,17 @@ mod tests {
             to_elevenlabs("Wait [3500ms] now"),
             "Wait <break time=\"3s\"/> now"
         );
-        // Values within the limit keep the caller's unit formatting
-        // (the corpus fixtures pin both "3s" and "250ms").
         assert_eq!(
             to_elevenlabs("Wait [250ms] now"),
-            "Wait <break time=\"250ms\"/> now"
+            "Wait <break time=\"0.25s\"/> now"
+        );
+        assert_eq!(
+            to_elevenlabs("Wait [1.50s] now"),
+            "Wait <break time=\"1.5s\"/> now"
+        );
+        assert_eq!(
+            to_elevenlabs("Wait [2s] now"),
+            "Wait <break time=\"2s\"/> now"
         );
     }
 
@@ -277,17 +295,7 @@ mod tests {
         // Not valid durations: plain text passthrough (matches the
         // speechmarkdown-js grammar, which only accepts \d+(\.\d+)?(s|ms)).
         for word in [
-            "1.2.3s",
-            "1..5s",
-            "apps",
-            "infs",
-            "s",
-            "5.s",
-            ".5s",
-            "0.s",
-            "-2s",
-            "+2s",
-            "1e3s",
+            "1.2.3s", "1..5s", "apps", "infs", "s", "5.s", ".5s", "0.s", "-2s", "+2s", "1e3s",
         ] {
             let out = to_elevenlabs(&format!("x [{word}] y"));
             assert_eq!(out, format!("x [{word}] y"), "word {word}");
@@ -342,10 +350,12 @@ mod tests {
     }
 
     #[test]
-    fn expressive_tags_pass_through() {
+    fn expressive_tags_are_dropped() {
+        // Audio tags are eleven_v3-exclusive; pre-v3 models read them
+        // aloud as literal text, so the pre-v3 dialect drops them.
         assert_eq!(
             to_elevenlabs("He [laugh] and then [applause] left"),
-            "He [laugh] and then [applause] left"
+            "He  and then  left"
         );
     }
 

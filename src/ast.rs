@@ -162,6 +162,10 @@ pub enum NodeType {
     /// Mark tag
     Mark,
 
+    /// Expressive audio tag [laugh], [sigh], [applause], etc.
+    /// Kept verbatim by formatters as a bracketed audio tag.
+    Expressive,
+
     // Modifier types (for text modifiers and sections)
     /// Emphasis modifier
     Emphasis,

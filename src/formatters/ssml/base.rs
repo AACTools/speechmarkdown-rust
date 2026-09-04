@@ -232,6 +232,7 @@ impl SsmlFormatterBase {
             NodeType::ShortIpa => self.format_ipa(node),
             NodeType::BareIpa => self.format_bare_ipa(node),
             NodeType::ShortSub => self.format_short_sub(node),
+            NodeType::Expressive => Ok(format!("[{}]", node.text)),
             _ => Ok(node.text.clone()),
         }
     }
@@ -855,12 +856,7 @@ mod phonetic_alphabet_tests {
             let (tag, attrs) = fmt().attribute_to_tag(key, src).unwrap();
             assert_eq!(tag, "phoneme", "key {}", key);
             assert_eq!(attrs_get(&attrs, "alphabet"), Some("ipa"), "key {}", key);
-            assert_eq!(
-                attrs_get(&attrs, "ph"),
-                Some(expected_ipa),
-                "key {}",
-                key
-            );
+            assert_eq!(attrs_get(&attrs, "ph"), Some(expected_ipa), "key {}", key);
         }
     }
 

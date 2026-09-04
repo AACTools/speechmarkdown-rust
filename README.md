@@ -48,8 +48,23 @@ You can safely ignore Swift-specific files. Your respective package managers (Ca
 | Apple | `"apple"` |
 | W3C | `"w3c"` |
 | Samsung Bixby | `"samsung-bixby"` or `"bixby"` |
-| ElevenLabs | `"elevenlabs"` |
+| ElevenLabs (pre-v3) | `"elevenlabs"` |
+| ElevenLabs v3 | `"elevenlabs-v3"` |
 | IBM Watson | `"ibm-watson"` or `"watson"` |
+
+### ElevenLabs note
+
+ElevenLabs does not parse SSML documents, so both ElevenLabs platforms emit
+prompt markup rather than SSML, and the correct dialect depends on the model:
+
+- `"elevenlabs"` — pre-v3 models (`eleven_multilingual_v2`, `eleven_flash_v2_5`,
+  `eleven_flash_v2`, `eleven_turbo_v2`): `<break time="x.xs"/>` pauses (max 3s)
+  and `<phoneme>` for IPA (flash/turbo, English only). No `<speak>` wrapper.
+- `"elevenlabs-v3"` — `eleven_v3` / `eleven_v3_conversational`: bracketed
+  natural-language audio tags (`[whispers]`, `[excited]`, `[pause]`,
+  `[long pause]`, `[laughs]`), punctuation pauses, and native `"/IPA/"`.
+  Audio tags are model-interpreted direction — best-effort, voice-dependent —
+  and are not understood by pre-v3 models.
 
 ## API
 

@@ -5,7 +5,7 @@ use speechmarkdown_rust::{Platform, SpeechMarkdownParser};
 fn parse_platform(platform: &str) -> Result<Platform> {
     Platform::from_platform_str(platform).ok_or_else(|| {
         Error::from_reason(format!(
-            "unsupported platform: '{}'. Use one of: amazon-alexa, google-assistant, microsoft-azure, apple, w3c, samsung-bixby, elevenlabs, ibm-watson",
+            "unsupported platform: '{}'. Use one of: amazon-alexa, google-assistant, microsoft-azure, apple, w3c, samsung-bixby, elevenlabs, elevenlabs-v3, ibm-watson",
             platform
         ))
     })

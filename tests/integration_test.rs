@@ -133,6 +133,27 @@ fn test_all_test_cases() {
                     }
                 }
 
+                // Test audio-tag output for ElevenLabs v3 (our own fixture
+                // set — the speechmarkdown-js reference has no v3 platform)
+                let elevenlabs_v3_file = test_dir.join(format!("{}.elevenlabs-v3.ssml", test_name));
+                if elevenlabs_v3_file.exists() {
+                    let expected = fs::read_to_string(&elevenlabs_v3_file).unwrap_or_else(|_| {
+                        panic!(
+                            "Failed to read ElevenLabs v3 file: {:?}",
+                            elevenlabs_v3_file
+                        )
+                    });
+
+                    let result = SpeechMarkdownParser::to_ssml(&input, Platform::ElevenLabsV3);
+                    if result.is_err() {
+                        all_checks_passed = false;
+                    } else if let Ok(actual) = result {
+                        if actual.trim() != normalize_line_endings(expected.trim()) {
+                            all_checks_passed = false;
+                        }
+                    }
+                }
+
                 all_checks_passed
             }
             Err(_e) => false,

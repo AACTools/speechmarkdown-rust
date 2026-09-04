@@ -563,14 +563,24 @@ impl SpeechMarkdownParser {
         let Some(body) = s.strip_suffix("ms").or_else(|| s.strip_suffix('s')) else {
             return false;
         };
-        // Strict numeric body: digits with at most one decimal point.
-        // Rejects words ending in 's' ("apps"), malformed numbers
-        // ("1.2.3s"), and non-finite spellings ("nan"/"inf" fail the
-        // character filter).
-        !body.is_empty()
-            && body.chars().filter(|&c| c == '.').count() <= 1
-            && body.chars().any(|c| c.is_ascii_digit())
-            && body.chars().all(|c| c.is_ascii_digit() || c == '.')
+        // Strict numeric body matching the speechmarkdown-js grammar
+        // (\d+(\.\d+)?): digits, with an optional decimal point that must
+        // be surrounded by digits. Rejects words ending in 's' ("apps"),
+        // malformed numbers ("1.2.3s", "1..5s"), sign/exponent spellings
+        // ("+2s", "1e3s"), and bare/edge dots (".5s", "5.s", "0.s").
+        let mut parts = body.split('.');
+        match (parts.next(), parts.next(), parts.next()) {
+            (Some(int_part), None, None) => {
+                !int_part.is_empty() && int_part.bytes().all(|b| b.is_ascii_digit())
+            }
+            (Some(int_part), Some(frac_part), None) => {
+                !int_part.is_empty()
+                    && int_part.bytes().all(|b| b.is_ascii_digit())
+                    && !frac_part.is_empty()
+                    && frac_part.bytes().all(|b| b.is_ascii_digit())
+            }
+            _ => false,
+        }
     }
 
     fn is_expressive_tag(s: &str) -> bool {

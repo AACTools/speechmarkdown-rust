@@ -214,7 +214,6 @@ impl Formatter for ElevenLabsFormatter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::formatters::base::Platform;
     use crate::parser::SpeechMarkdownParser;
 
@@ -277,7 +276,19 @@ mod tests {
     fn malformed_break_numbers_are_not_breaks() {
         // Not valid durations: plain text passthrough (matches the
         // speechmarkdown-js grammar, which only accepts \d+(\.\d+)?(s|ms)).
-        for word in ["1.2.3s", "1..5s", "apps", "infs", "s"] {
+        for word in [
+            "1.2.3s",
+            "1..5s",
+            "apps",
+            "infs",
+            "s",
+            "5.s",
+            ".5s",
+            "0.s",
+            "-2s",
+            "+2s",
+            "1e3s",
+        ] {
             let out = to_elevenlabs(&format!("x [{word}] y"));
             assert_eq!(out, format!("x [{word}] y"), "word {word}");
         }

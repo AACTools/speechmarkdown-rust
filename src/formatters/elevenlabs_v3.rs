@@ -292,7 +292,6 @@ impl Formatter for ElevenLabsV3Formatter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::formatters::base::Platform;
     use crate::parser::SpeechMarkdownParser;
 

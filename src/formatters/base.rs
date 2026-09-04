@@ -12,6 +12,9 @@ pub enum Platform {
     W3c,
     SamsungBixby,
     ElevenLabs,
+    /// Eleven v3 audio-tag dialect (eleven_v3 / eleven_v3_conversational):
+    /// bracketed natural-language tags instead of SSML.
+    ElevenLabsV3,
     IbmWatson,
 }
 
@@ -26,6 +29,7 @@ impl Platform {
             "w3c" => Some(Platform::W3c),
             "samsung-bixby" | "bixby" => Some(Platform::SamsungBixby),
             "elevenlabs" => Some(Platform::ElevenLabs),
+            "elevenlabs-v3" | "elevenlabs_v3" | "eleven-v3" => Some(Platform::ElevenLabsV3),
             "ibm-watson" | "watson" => Some(Platform::IbmWatson),
             _ => None,
         }
@@ -41,6 +45,7 @@ impl Platform {
             Platform::W3c => "w3c",
             Platform::SamsungBixby => "samsung-bixby",
             Platform::ElevenLabs => "elevenlabs",
+            Platform::ElevenLabsV3 => "elevenlabs-v3",
             Platform::IbmWatson => "ibm-watson",
         }
     }
@@ -109,6 +114,11 @@ pub fn create_formatter(platform: Platform, options: FormatterOptions) -> Box<dy
             // Pre-v3 prompt markup: <break> tags (and flash-only <phoneme>),
             // no SSML document, no escaping.
             Box::new(super::elevenlabs::ElevenLabsFormatter::new(options))
+        }
+        Platform::ElevenLabsV3 => {
+            // Eleven v3 audio-tag dialect: no SSML at all — bracketed
+            // natural-language tags, punctuation pauses, native slash IPA.
+            Box::new(super::elevenlabs_v3::ElevenLabsV3Formatter::new(options))
         }
         _ => Box::new(super::TextFormatter::new()),
     }

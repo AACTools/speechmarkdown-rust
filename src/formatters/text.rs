@@ -113,7 +113,12 @@ impl TextFormatter {
 
             // Mark tags - no output
             NodeType::Mark => {
-                // Mark tags produce no output
+                // Mark tags produce no text output
+            }
+
+            // Expressive audio tags - kept verbatim ([laugh], [sigh], …)
+            NodeType::Expressive => {
+                result.push(format!("[{}]", node.text));
             }
 
             // Modifiers are handled as part of text modifiers

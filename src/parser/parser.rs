@@ -7,6 +7,66 @@ use crate::ssml_to_smd;
 
 pub struct SpeechMarkdownParser;
 
+/// Expressive audio tags recognized by the grammar, mirroring the
+/// speechmarkdown-js reference implementation. Eleven v3 treats any
+/// bracketed natural-language cue as an audio tag; this list covers the
+/// fixed vocabulary the JS parser formalizes. Anything else bracketed
+/// falls through as plain text (and therefore also passes through to
+/// Eleven v3 verbatim).
+const EXPRESSIVE_TAGS: &[&str] = &[
+    "laugh",
+    "laughter",
+    "sigh",
+    "cough",
+    "cheer",
+    "cheering",
+    "cry",
+    "crying",
+    "gasp",
+    "groan",
+    "groaning",
+    "hum",
+    "hmm",
+    "mm-hmm",
+    "oh",
+    "sniff",
+    "whew",
+    "wow",
+    "yawn",
+    "yeah",
+    "huh",
+    "tsk",
+    "uh-huh",
+    "mmm",
+    "mhm",
+    "ahem",
+    "applause",
+    "boo",
+    "giggle",
+    "hiccup",
+    "hurray",
+    "moan",
+    "pant",
+    "scream",
+    "shush",
+    "sneeze",
+    "throat-clear",
+    "wheeze",
+    "whimper",
+    "yay",
+    "bleh",
+    "eek",
+    "meh",
+    "ooh",
+    "pfft",
+    "phew",
+    "psst",
+    "shh",
+    "tsk-tsk",
+    "uh-oh",
+    "umph",
+];
+
 impl SpeechMarkdownParser {
     /// Parse SpeechMarkdown text into an AST
     pub fn parse(input: &str) -> Result<AstNode> {
@@ -124,6 +184,9 @@ impl SpeechMarkdownParser {
                                 NodeType::ShortBreak,
                                 format!("[{}]", bracket_content),
                             ));
+                        } else if Self::is_expressive_tag(&bracket_content) {
+                            document = document
+                                .add_child(AstNode::new(NodeType::Expressive, bracket_content));
                         } else {
                             current_text.push('[');
                             current_text.push_str(&bracket_content);
@@ -497,7 +560,31 @@ impl SpeechMarkdownParser {
     }
 
     fn is_time_break(s: &str) -> bool {
-        s.ends_with("s") || s.ends_with("ms")
+        let Some(body) = s.strip_suffix("ms").or_else(|| s.strip_suffix('s')) else {
+            return false;
+        };
+        // Strict numeric body matching the speechmarkdown-js grammar
+        // (\d+(\.\d+)?): digits, with an optional decimal point that must
+        // be surrounded by digits. Rejects words ending in 's' ("apps"),
+        // malformed numbers ("1.2.3s", "1..5s"), sign/exponent spellings
+        // ("+2s", "1e3s"), and bare/edge dots (".5s", "5.s", "0.s").
+        let mut parts = body.split('.');
+        match (parts.next(), parts.next(), parts.next()) {
+            (Some(int_part), None, None) => {
+                !int_part.is_empty() && int_part.bytes().all(|b| b.is_ascii_digit())
+            }
+            (Some(int_part), Some(frac_part), None) => {
+                !int_part.is_empty()
+                    && int_part.bytes().all(|b| b.is_ascii_digit())
+                    && !frac_part.is_empty()
+                    && frac_part.bytes().all(|b| b.is_ascii_digit())
+            }
+            _ => false,
+        }
+    }
+
+    fn is_expressive_tag(s: &str) -> bool {
+        EXPRESSIVE_TAGS.contains(&s)
     }
 
     fn read_until(chars: &mut std::iter::Peekable<std::str::Chars>, end: char) -> (String, bool) {
@@ -579,10 +666,42 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_expressive_tag() {
+        let ast = SpeechMarkdownParser::parse("He [laugh] and then [applause] left").unwrap();
+        let tags: Vec<&AstNode> = ast
+            .children
+            .iter()
+            .filter(|c| c.node_type == NodeType::Expressive)
+            .collect();
+        assert_eq!(tags.len(), 2);
+        assert_eq!(tags[0].text, "laugh");
+        assert_eq!(tags[1].text, "applause");
+    }
+
+    #[test]
+    fn test_parse_expressive_untouched_when_not_keyword() {
+        // Unknown bracketed content stays plain text (passthrough for
+        // Eleven v3's open-ended natural-language audio tags).
+        let ast = SpeechMarkdownParser::parse("This [not-a-known-tag] stays").unwrap();
+        assert!(ast
+            .children
+            .iter()
+            .all(|c| c.node_type == NodeType::PlainText));
+    }
+
+    #[test]
+    fn test_expressive_text_output_keeps_tag() {
+        let out = SpeechMarkdownParser::to_text("He said [boo] and left").unwrap();
+        assert_eq!(out, "He said [boo] and left");
+    }
+
+    #[test]
     fn test_is_speech_markdown() {
         assert!(!SpeechMarkdownParser::is_speech_markdown("Hello world"));
         assert!(!SpeechMarkdownParser::is_speech_markdown(""));
-        assert!(SpeechMarkdownParser::is_speech_markdown("Hello (world)[emphasis:\"strong\"]"));
+        assert!(SpeechMarkdownParser::is_speech_markdown(
+            "Hello (world)[emphasis:\"strong\"]"
+        ));
         assert!(SpeechMarkdownParser::is_speech_markdown("Sample [2s] text"));
         assert!(SpeechMarkdownParser::is_speech_markdown("++strong++"));
         assert!(SpeechMarkdownParser::is_speech_markdown("~word~"));

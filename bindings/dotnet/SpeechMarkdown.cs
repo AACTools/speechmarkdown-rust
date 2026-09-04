@@ -274,7 +274,9 @@ namespace SpeechMarkdown
         public const string Apple = "apple";
         public const string W3c = "w3c";
         public const string SamsungBixby = "samsung-bixby";
-        public const string ElevenLabs = "eleven-labs";
+        // Note: the core library parses "elevenlabs" (no hyphen).
+        public const string ElevenLabs = "elevenlabs";
+        public const string ElevenLabsV3 = "elevenlabs-v3";
         public const string IbmWatson = "ibm-watson";
     }
 }

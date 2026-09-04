@@ -10,7 +10,7 @@ extern "C" {
 
 // Convert SpeechMarkdown input to SSML for the given platform.
 // Platforms: "amazon-alexa", "google-assistant", "microsoft-azure",
-//            "apple", "w3c", "samsung-bixby", "eleven-labs", "ibm-watson"
+//            "apple", "w3c", "samsung-bixby", "elevenlabs", "elevenlabs-v3", "ibm-watson"
 // Returns: allocated string with SSML, or NULL on error.
 //          Caller must free with speechmarkdown_free().
 const char* speechmarkdown_to_ssml(const char* input, const char* platform);

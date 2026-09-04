@@ -26,6 +26,7 @@ pub fn get_supported_ssml(platform: Platform) -> PlatformCapabilities {
         Platform::W3c => w3c_capabilities(),
         Platform::SamsungBixby => samsung_bixby_capabilities(),
         Platform::ElevenLabs => elevenlabs_capabilities(),
+        Platform::ElevenLabsV3 => elevenlabs_v3_capabilities(),
         Platform::IbmWatson => ibm_watson_capabilities(),
     }
 }
@@ -396,24 +397,127 @@ fn samsung_bixby_capabilities() -> PlatformCapabilities {
 }
 
 fn elevenlabs_capabilities() -> PlatformCapabilities {
+    // Pre-v3 prompt markup (eleven_multilingual_v2 / flash_v2_5 /
+    // flash_v2 / turbo_v2): no SSML document, but two inline tags are
+    // parsed. Everything else degrades to plain text.
     PlatformCapabilities {
         platform: "elevenlabs".into(),
         ssml_elements: vec![
-            break_element(),
-            prosody_element(),
-            audio_element(),
-            phoneme_element(),
-            mark_element(),
-            say_as_element("characters", "characters"),
-            say_as_element("number", "number"),
-            say_as_element("date", "date"),
-            say_as_element("time", "time"),
+            SsmlCapability {
+                element: "break".into(),
+                description: "Insert a pause (pre-v3 models only; max 3s; \
+                              eleven_v3 does not parse break tags)"
+                    .into(),
+                attributes: vec!["time".into()],
+                speech_markdown_syntax: vec![
+                    "[2s]".into(),
+                    "[500ms]".into(),
+                    "[break:strong]".into(),
+                ],
+                example: "Hello [2s] world".into(),
+            },
+            SsmlCapability {
+                element: "phoneme".into(),
+                description: "Custom pronunciation (eleven_flash_v2 / \
+                              eleven_turbo_v2 only, English only)"
+                    .into(),
+                attributes: vec!["alphabet".into(), "ph".into()],
+                speech_markdown_syntax: vec![
+                    "(text)[ipa:\"pɪkəloʊ\"]".into(),
+                    "(text)/pɪkəloʊ/".into(),
+                ],
+                example: "(piccolo)/pɪkəloʊ/".into(),
+            },
         ],
         unsupported: vec![
-            "emphasis".into(),
-            "voice".into(),
-            "lang".into(),
-            "sub".into(),
+            "emphasis (no equivalent; degrades to text)".into(),
+            "prosody (rate maps to the API voice_settings.speed; use the \
+             elevenlabs-v3 dialect for tag-based control)"
+                .into(),
+            "say-as (text normalization is built in)".into(),
+            "sub (use pronunciation dictionaries or phonetic spelling)".into(),
+            "audio (no equivalent)".into(),
+            "mark (no equivalent)".into(),
+            "voice (switch via the API voice_id parameter)".into(),
+            "lang (no equivalent)".into(),
+            "audio tags (eleven_v3 only)".into(),
+            "amazon:effect".into(),
+            "amazon:emotion".into(),
+            "amazon:domain".into(),
+            "mstts:express-as".into(),
+            "google:style".into(),
+        ],
+    }
+}
+
+fn elevenlabs_v3_capabilities() -> PlatformCapabilities {
+    // Eleven v3 audio-tag dialect: no SSML at all. Bracketed
+    // natural-language tags are prompts interpreted by the model —
+    // best-effort, voice-dependent, and directional from their insertion
+    // point (no span semantics).
+    PlatformCapabilities {
+        platform: "elevenlabs-v3".into(),
+        ssml_elements: vec![
+            SsmlCapability {
+                element: "[audio tag]".into(),
+                description: "Natural-language performance direction in \
+                              brackets; open-ended (emotions, delivery, \
+                              reactions, sound effects, accents)"
+                    .into(),
+                attributes: vec![],
+                speech_markdown_syntax: vec![
+                    "[laugh]".into(),
+                    "#[excited] text".into(),
+                    "(text)[whisper]".into(),
+                ],
+                example: "[whispers] It's a secret".into(),
+            },
+            SsmlCapability {
+                element: "[pause] family".into(),
+                description: "Pauses via [short pause] / [pause] / [long \
+                              pause] or ellipses; approximate — no exact \
+                              durations on v3"
+                    .into(),
+                attributes: vec![],
+                speech_markdown_syntax: vec![
+                    "[500ms]".into(),
+                    "[2s]".into(),
+                    "[break:strong]".into(),
+                ],
+                example: "Hello [2s] world".into(),
+            },
+            SsmlCapability {
+                element: "inline IPA".into(),
+                description: "Native IPA wrapped in quotes and slashes".into(),
+                attributes: vec![],
+                speech_markdown_syntax: vec!["(speech)/spitʃ/".into()],
+                example: "(speech)/spitʃ/".into(),
+            },
+            SsmlCapability {
+                element: "emphasis tags".into(),
+                description: "Emphasis via [emphasized] / [stress on next \
+                              word] / [understated] (capitalization also \
+                              works but mutates the text)"
+                    .into(),
+                attributes: vec![],
+                speech_markdown_syntax: vec!["++word++".into(), "+word+".into()],
+                example: "++important++".into(),
+            },
+        ],
+        unsupported: vec![
+            "break (eleven_v3 does not parse SSML break tags)".into(),
+            "phoneme (use inline IPA)".into(),
+            "prosody (rate maps to the API voice_settings.speed; \
+             tempo/volume map to [rushed]/[drawn out]/[softly]/[loudly] tags)"
+                .into(),
+            "say-as (text normalization is built in)".into(),
+            "sub (alias is spoken instead of the text)".into(),
+            "audio (no equivalent)".into(),
+            "mark (no equivalent)".into(),
+            "voice (switch via the API voice_id parameter or Text to \
+             Dialogue)"
+                .into(),
+            "lang (no equivalent)".into(),
             "amazon:effect".into(),
             "amazon:emotion".into(),
             "amazon:domain".into(),
@@ -466,45 +570,17 @@ mod tests {
             Platform::W3c,
             Platform::SamsungBixby,
             Platform::ElevenLabs,
+            Platform::ElevenLabsV3,
             Platform::IbmWatson,
         ] {
             let caps = get_supported_ssml(platform);
-            assert!(!caps.ssml_elements.is_empty(), "{:?} has no elements", platform);
+            assert!(
+                !caps.ssml_elements.is_empty(),
+                "{:?} has no elements",
+                platform
+            );
             assert!(!caps.platform.is_empty());
         }
-    }
-
-    #[test]
-    fn test_alexa_has_emotion() {
-        let caps = get_supported_ssml(Platform::AmazonAlexa);
-        assert!(caps.ssml_elements.iter().any(|e| e.element == "amazon:emotion"));
-    }
-
-    #[test]
-    fn test_azure_has_express_as() {
-        let caps = get_supported_ssml(Platform::MicrosoftAzure);
-        assert!(caps.ssml_elements.iter().any(|e| e.element == "mstts:express-as"));
-    }
-
-    #[test]
-    fn test_google_no_voice() {
-        let caps = get_supported_ssml(Platform::GoogleAssistant);
-        assert!(caps.unsupported.contains(&"voice".to_string()));
-    }
-
-    #[test]
-    fn test_azure_no_emphasis() {
-        let caps = get_supported_ssml(Platform::MicrosoftAzure);
-        assert!(caps.unsupported.iter().any(|u| u.contains("emphasis")));
-    }
-
-    #[test]
-    fn test_serialization() {
-        let caps = get_supported_ssml(Platform::AmazonAlexa);
-        let json = serde_json::to_string(&caps).unwrap();
-        assert!(json.contains("amazon:emotion"));
-        let deserialized: PlatformCapabilities = serde_json::from_str(&json).unwrap();
-        assert_eq!(caps, deserialized);
     }
 
     #[test]
@@ -526,5 +602,52 @@ mod tests {
                 platform
             );
         }
+
+        // Eleven v3 does not parse <break> at all; pauses are audio tags.
+        let v3 = get_supported_ssml(Platform::ElevenLabsV3);
+        assert!(v3
+            .ssml_elements
+            .iter()
+            .any(|e| e.element == "[pause] family"));
+        assert!(v3.unsupported.iter().any(|u| u.starts_with("break")));
+    }
+
+    #[test]
+    fn test_alexa_has_emotion() {
+        let caps = get_supported_ssml(Platform::AmazonAlexa);
+        assert!(caps
+            .ssml_elements
+            .iter()
+            .any(|e| e.element == "amazon:emotion"));
+    }
+
+    #[test]
+    fn test_azure_has_express_as() {
+        let caps = get_supported_ssml(Platform::MicrosoftAzure);
+        assert!(caps
+            .ssml_elements
+            .iter()
+            .any(|e| e.element == "mstts:express-as"));
+    }
+
+    #[test]
+    fn test_google_no_voice() {
+        let caps = get_supported_ssml(Platform::GoogleAssistant);
+        assert!(caps.unsupported.contains(&"voice".to_string()));
+    }
+
+    #[test]
+    fn test_azure_no_emphasis() {
+        let caps = get_supported_ssml(Platform::MicrosoftAzure);
+        assert!(caps.unsupported.iter().any(|u| u.contains("emphasis")));
+    }
+
+    #[test]
+    fn test_serialization() {
+        let caps = get_supported_ssml(Platform::AmazonAlexa);
+        let json = serde_json::to_string(&caps).unwrap();
+        assert!(json.contains("amazon:emotion"));
+        let deserialized: PlatformCapabilities = serde_json::from_str(&json).unwrap();
+        assert_eq!(caps, deserialized);
     }
 }

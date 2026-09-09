@@ -100,6 +100,16 @@ impl ElevenLabsV3Formatter {
                 "reduced" => Some("[understated]".to_string()),
                 _ => None,
             },
+            // Generic style modifier (e.g. translated from Azure's
+            // mstts:express-as): v3 tags are open-ended natural language,
+            // so the style value passes through as the tag.
+            "style" => {
+                if value.is_empty() {
+                    None
+                } else {
+                    Some(format!("[{value}]"))
+                }
+            }
             _ => None,
         }
     }

@@ -135,12 +135,7 @@ fn handle_self_closing(name: &str, attrs: &[(String, String)], result: &mut Stri
     }
 }
 
-fn handle_closing(
-    name: &str,
-    attrs: &[(String, String)],
-    text_start: usize,
-    result: &mut String,
-) {
+fn handle_closing(name: &str, attrs: &[(String, String)], text_start: usize, result: &mut String) {
     match name {
         "emphasis" => {
             if let Some(level) = get_attr(attrs, "level") {
@@ -204,6 +199,28 @@ fn handle_closing(
             if alphabet.eq_ignore_ascii_case("ipa") && !ph.is_empty() {
                 let inner = extract_inner(text_start, result);
                 result.push_str(&format!("({})/{}", inner, ph));
+            }
+        }
+        // Amazon's whispered effect (the local name quick-xml reports for
+        // <amazon:effect>). Round-trips into the ElevenLabs dialects via
+        // the whisper modifier.
+        "effect" => {
+            if get_attr(attrs, "name").is_some_and(|name| name.eq_ignore_ascii_case("whispered")) {
+                let inner = extract_inner(text_start, result);
+                if !inner.is_empty() {
+                    result.push_str(&format!("({})[whisper]", inner));
+                }
+            }
+        }
+        // Azure's express-as (<mstts:express-as style="…">) → the generic
+        // style modifier, which the ElevenLabs v3 dialect renders as an
+        // audio tag and other platforms drop.
+        "express-as" => {
+            if let Some(style) = get_attr(attrs, "style") {
+                let inner = extract_inner(text_start, result);
+                if !inner.is_empty() {
+                    result.push_str(&format!("({})[style:\"{}\"]", inner, style));
+                }
             }
         }
         "sub" => {
@@ -274,10 +291,7 @@ fn extract_inner(text_start: usize, result: &mut String) -> String {
 }
 
 fn get_attr(attrs: &[(String, String)], key: &str) -> Option<String> {
-    attrs
-        .iter()
-        .find(|(k, _)| k == key)
-        .map(|(_, v)| v.clone())
+    attrs.iter().find(|(k, _)| k == key).map(|(_, v)| v.clone())
 }
 
 #[cfg(test)]
@@ -406,8 +420,7 @@ mod tests {
 
     #[test]
     fn test_say_as_date_with_format() {
-        let ssml =
-            r#"<speak><say-as interpret-as="date" format="mdy">01/02/2024</say-as></speak>"#;
+        let ssml = r#"<speak><say-as interpret-as="date" format="mdy">01/02/2024</say-as></speak>"#;
         let result = ssml_to_smd(ssml).unwrap();
         assert_eq!(result, r#"(01/02/2024)[date:"mdy"]"#);
     }
@@ -430,5 +443,43 @@ mod tests {
         let ssml = "<speak>A &amp; B &lt; C &gt; D</speak>";
         let result = ssml_to_smd(ssml).unwrap();
         assert_eq!(result, "A & B < C > D");
+    }
+
+    #[test]
+    fn test_amazon_whispered_effect() {
+        let ssml =
+            r#"<speak><amazon:effect name="whispered">it's a secret</amazon:effect></speak>"#;
+        let result = ssml_to_smd(ssml).unwrap();
+        assert_eq!(result, "(it's a secret)[whisper]");
+    }
+
+    #[test]
+    fn test_amazon_other_effect_dropped() {
+        let ssml = r#"<speak><amazon:effect name="damped">plain</amazon:effect></speak>"#;
+        let result = ssml_to_smd(ssml).unwrap();
+        assert_eq!(result, "plain");
+    }
+
+    #[test]
+    fn test_mstts_express_as_style() {
+        let ssml =
+            r#"<speak><mstts:express-as style="cheerful">hello there</mstts:express-as></speak>"#;
+        let result = ssml_to_smd(ssml).unwrap();
+        assert_eq!(result, r#"(hello there)[style:"cheerful"]"#);
+    }
+
+    #[test]
+    fn elevenlabs_round_trip_ssml_to_v3_dialect() {
+        // The chain tts_speak_ssml uses: W3C SSML → SpeechMarkdown →
+        // v3 audio-tag dialect.
+        use crate::formatters::base::Platform;
+        use crate::parser::SpeechMarkdownParser;
+        let ssml = r#"<speak>Hello <break time="2s"/> <prosody rate="slow">world</prosody> <amazon:effect name="whispered">quietly</amazon:effect></speak>"#;
+        let smd = ssml_to_smd(ssml).unwrap();
+        let dialect = SpeechMarkdownParser::to_ssml(&smd, Platform::ElevenLabsV3).unwrap();
+        assert_eq!(
+            dialect,
+            "Hello [long pause] [drawn out] world [whispers] quietly"
+        );
     }
 }

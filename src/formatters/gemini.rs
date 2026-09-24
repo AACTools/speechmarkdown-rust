@@ -46,14 +46,21 @@ enum ExpressiveMapping {
     Drop,
 }
 
-/// SpeechMarkdown expressive tags → Gemini inline vocabulary.
+/// Map SpeechMarkdown expressive tags → Gemini inline vocabulary.
 ///
-/// The recommended Gemini tag set (from the TTS prompting guide) covers
-/// vocal bursts: recognized tags map to their documented angle-bracket
-/// spelling, backchannel interjections degrade to plain text (Gemini
-/// wants transcripts written like real speech), non-vocal sound effects
-/// are dropped, and unrecognized tags also fall back to plain text — an
-/// unknown tag risks being read literally, plain text never misbehaves.
+/// Policy, in three tiers:
+/// - Tags with a documented Gemini angle-bracket form map to it, with
+///   alias normalization ([cheering] → <cheer>, [whew] → <phew>,
+///   [ahem] → <throat-clearing>).
+/// - Other recognized human vocalizations ([wheeze], [sniff], [hiccup],
+///   [hum], [shush]) also become angle tags: Gemini's list is
+///   "recommended, not exhaustive" and an angle-bracket direction is
+///   safer than inserting the bare word ("wheeze"), which the TTS would
+///   pronounce literally.
+/// - Everything else (interjections like [mhm]/[wow], unknown tags like
+///   [squee]) becomes plain text or is dropped — an arbitrary bracketed
+///   cue risks being read literally, and the word itself is the honest
+///   degradation for backchannels.
 fn expressive_mapping(tag: &str) -> ExpressiveMapping {
     match tag {
         // Documented vocal bursts (with alias normalization to the
@@ -87,6 +94,22 @@ fn expressive_mapping(tag: &str) -> ExpressiveMapping {
         "pfft" => ExpressiveMapping::Angle("pff"),
         "phew" => ExpressiveMapping::Angle("phew"),
         "tsk-tsk" => ExpressiveMapping::Angle("tsk"),
+
+        // Documented Gemini bursts added to the parser vocabulary —
+        // emit their documented angle-bracket spelling.
+        "chuckle" | "chuckles" => ExpressiveMapping::Angle("chuckle"),
+        "snicker" => ExpressiveMapping::Angle("snicker"),
+        "snort" => ExpressiveMapping::Angle("snort"),
+        "sob" => ExpressiveMapping::Angle("sob"),
+        "shriek" => ExpressiveMapping::Angle("shriek"),
+        "shout" => ExpressiveMapping::Angle("shout"),
+        "growl" => ExpressiveMapping::Angle("growl"),
+        "grunt" => ExpressiveMapping::Angle("grunt"),
+        "hiss" => ExpressiveMapping::Angle("hiss"),
+        "grr" => ExpressiveMapping::Angle("grr"),
+        "breath" => ExpressiveMapping::Angle("breath"),
+        "exhales" => ExpressiveMapping::Angle("exhales"),
+        "argh" => ExpressiveMapping::Angle("argh"),
 
         // Conversational backchannels/disfluencies: spoken, not tagged.
         "hmm" | "mhm" | "mm-hmm" | "uh-huh" | "yeah" | "huh" | "oh" | "mmm" | "ooh" | "meh"
@@ -446,6 +469,11 @@ mod tests {
         assert_eq!(to_gemini("[cheering]"), "<cheer>");
         assert_eq!(to_gemini("[throat-clear]"), "<throat-clearing>");
         assert_eq!(to_gemini("[whew]"), "<phew>");
+        // Documented bursts added to the parser vocabulary.
+        assert_eq!(to_gemini("[chuckle]"), "<chuckle>");
+        assert_eq!(to_gemini("[chuckles]"), "<chuckle>");
+        assert_eq!(to_gemini("[snort]"), "<snort>");
+        assert_eq!(to_gemini("[breath]"), "<breath>");
     }
 
     #[test]

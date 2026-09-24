@@ -1,6 +1,6 @@
 [package]
 name = "speechmarkdown-rust"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 authors = ["SpeechMarkdown Contributors"]
 description = "High-performance SpeechMarkdown parser with multi-language bindings"
@@ -11,10 +11,10 @@ keywords = ["speech", "ssml", "tts", "voice", "parser"]
 categories = ["parser-implementations", "text-processing"]
 
 [dependencies]
-quick-xml = "0.37"
+quick-xml = "0.42"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-thiserror = "1.0"
+thiserror = "2.0"
 ipa-translate = { version = "0.2", optional = true }
 
 [features]

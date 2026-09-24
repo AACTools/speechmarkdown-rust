@@ -20,13 +20,13 @@ pub fn ssml_to_smd(ssml: &str) -> Result<String> {
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e)) => {
-                let name = String::from_utf8_lossy(e.name().local_name().as_ref()).to_string();
+                let name = e.name().local_name().as_ref().to_string();
                 let attrs: Vec<(String, String)> = e
                     .attributes()
                     .filter_map(|a| a.ok())
                     .map(|a| {
-                        let key = String::from_utf8_lossy(a.key.as_ref()).to_string();
-                        let val = String::from_utf8_lossy(&a.value).to_string();
+                        let key = a.key.0.to_string();
+                        let val = a.value.to_string();
                         (key, val)
                     })
                     .collect();
@@ -38,13 +38,13 @@ pub fn ssml_to_smd(ssml: &str) -> Result<String> {
                 });
             }
             Ok(Event::Empty(e)) => {
-                let name = String::from_utf8_lossy(e.name().local_name().as_ref()).to_string();
+                let name = e.name().local_name().as_ref().to_string();
                 let attrs: Vec<(String, String)> = e
                     .attributes()
                     .filter_map(|a| a.ok())
                     .map(|a| {
-                        let key = String::from_utf8_lossy(a.key.as_ref()).to_string();
-                        let val = String::from_utf8_lossy(&a.value).to_string();
+                        let key = a.key.0.to_string();
+                        let val = a.value.to_string();
                         (key, val)
                     })
                     .collect();
@@ -52,13 +52,7 @@ pub fn ssml_to_smd(ssml: &str) -> Result<String> {
                 handle_self_closing(&name, &attrs, &mut result);
             }
             Ok(Event::Text(e)) => {
-                let text = e.unescape().map_err(|err| {
-                    ParseError::IoError(format!("SSML text decode error: {}", err))
-                })?;
-                let decoded = text
-                    .replace("&amp;", "&")
-                    .replace("&lt;", "<")
-                    .replace("&gt;", ">");
+                let decoded = e.xml_content(quick_xml::XmlVersion::Explicit1_0);
                 if !decoded.is_empty() {
                     result.push_str(&decoded);
                 }
@@ -69,9 +63,19 @@ pub fn ssml_to_smd(ssml: &str) -> Result<String> {
                 }
             }
             Ok(Event::CData(e)) => {
-                let bytes = e.into_inner();
-                let text = String::from_utf8_lossy(&bytes);
-                result.push_str(&text);
+                result.push_str(&e.into_inner());
+            }
+            Ok(Event::GeneralRef(e)) => {
+                // &amp;/&lt;/&gt;/&#nn; arrive as separate events in 0.42
+                // into_inner() is the bare ref name ("amp", "#60") —
+                // re-wrap it for unescape.
+                let raw = format!("&{};", e.into_inner());
+                match quick_xml::escape::unescape(&raw) {
+                    Ok(text) => result.push_str(&text),
+                    Err(err) => {
+                        return Err(ParseError::IoError(format!("entity decode error: {err}")));
+                    }
+                }
             }
             Err(e) => {
                 return Err(ParseError::IoError(format!(

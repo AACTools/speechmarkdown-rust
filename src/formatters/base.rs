@@ -15,6 +15,10 @@ pub enum Platform {
     /// Eleven v3 audio-tag dialect (eleven_v3 / eleven_v3_conversational):
     /// bracketed natural-language tags instead of SSML.
     ElevenLabsV3,
+    /// Gemini 3.8 TTS dialect (gemini-3.8-flash-tts / -flash-lite-tts):
+    /// angle-bracket vocal bursts and pauses, CAPS emphasis, and plain-text
+    /// disfluencies instead of SSML.
+    Gemini,
     IbmWatson,
 }
 
@@ -30,6 +34,7 @@ impl Platform {
             "samsung-bixby" | "bixby" => Some(Platform::SamsungBixby),
             "elevenlabs" => Some(Platform::ElevenLabs),
             "elevenlabs-v3" | "elevenlabs_v3" | "eleven-v3" => Some(Platform::ElevenLabsV3),
+            "gemini" | "gemini-3.8" | "gemini-tts" | "google-gemini" => Some(Platform::Gemini),
             "ibm-watson" | "watson" => Some(Platform::IbmWatson),
             _ => None,
         }
@@ -46,6 +51,7 @@ impl Platform {
             Platform::SamsungBixby => "samsung-bixby",
             Platform::ElevenLabs => "elevenlabs",
             Platform::ElevenLabsV3 => "elevenlabs-v3",
+            Platform::Gemini => "gemini",
             Platform::IbmWatson => "ibm-watson",
         }
     }
@@ -119,6 +125,12 @@ pub fn create_formatter(platform: Platform, options: FormatterOptions) -> Box<dy
             // Eleven v3 audio-tag dialect: no SSML at all — bracketed
             // natural-language tags, punctuation pauses, native slash IPA.
             Box::new(super::elevenlabs_v3::ElevenLabsV3Formatter::new(options))
+        }
+        Platform::Gemini => {
+            // Gemini 3.8 TTS dialect: no SSML — the transcript is directed
+            // with angle-bracket vocal bursts/pauses, CAPS emphasis, and
+            // plain-text disfluencies.
+            Box::new(super::gemini::GeminiFormatter::new(options))
         }
         _ => Box::new(super::TextFormatter::new()),
     }

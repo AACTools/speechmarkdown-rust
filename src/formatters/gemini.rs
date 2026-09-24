@@ -284,7 +284,10 @@ impl GeminiFormatter {
                     let mut prefix = String::new();
                     let mut caps = false;
                     for key in &node.attribute_keys {
-                        if Self::modifier_caps_text(key, node.attributes.get(key).map(String::as_str).unwrap_or("")) {
+                        if Self::modifier_caps_text(
+                            key,
+                            node.attributes.get(key).map(String::as_str).unwrap_or(""),
+                        ) {
                             caps = true;
                         } else if let Some(tag) = Self::modifier_to_tag(key) {
                             prefix.push_str(tag);
@@ -389,7 +392,10 @@ mod tests {
             to_gemini("Sample [0.5s] speech"),
             "Sample <short pause> speech"
         );
-        assert_eq!(to_gemini("Sample [2s] speech"), "Sample <long pause> speech");
+        assert_eq!(
+            to_gemini("Sample [2s] speech"),
+            "Sample <long pause> speech"
+        );
     }
 
     #[test]
@@ -494,7 +500,10 @@ mod tests {
 
     #[test]
     fn sections_map_to_whisper_tag_only() {
-        assert_eq!(to_gemini("#[whisper] secret stuff"), "<whispers>  secret stuff");
+        assert_eq!(
+            to_gemini("#[whisper] secret stuff"),
+            "<whispers>  secret stuff"
+        );
         // The style spelling maps identically.
         assert_eq!(
             to_gemini("#[style:whisper] secret stuff"),

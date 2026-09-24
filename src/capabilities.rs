@@ -547,11 +547,7 @@ fn gemini_capabilities() -> PlatformCapabilities {
                               transcripts"
                     .into(),
                 attributes: vec![],
-                speech_markdown_syntax: vec![
-                    "[laugh]".into(),
-                    "[sigh]".into(),
-                    "[gasp]".into(),
-                ],
+                speech_markdown_syntax: vec!["[laugh]".into(), "[sigh]".into(), "[gasp]".into()],
                 example: "Wait... did you hear that? <sigh>".into(),
             },
             SsmlCapability {
@@ -578,8 +574,7 @@ fn gemini_capabilities() -> PlatformCapabilities {
             },
             SsmlCapability {
                 element: "<whispers>".into(),
-                description: "Whisper as an inline vocal burst"
-                    .into(),
+                description: "Whisper as an inline vocal burst".into(),
                 attributes: vec![],
                 speech_markdown_syntax: vec!["(text)[whisper]".into(), "#[whisper] text".into()],
                 example: "<whispers> it's a secret".into(),

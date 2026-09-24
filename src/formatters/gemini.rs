@@ -49,9 +49,11 @@ enum ExpressiveMapping {
 /// SpeechMarkdown expressive tags → Gemini inline vocabulary.
 ///
 /// The recommended Gemini tag set (from the TTS prompting guide) covers
-/// vocal bursts only; anything humanly vocalizable is passed through in
-/// angle brackets (the list is "recommended", not exhaustive), while
-/// non-vocal sound effects are dropped.
+/// vocal bursts: recognized tags map to their documented angle-bracket
+/// spelling, backchannel interjections degrade to plain text (Gemini
+/// wants transcripts written like real speech), non-vocal sound effects
+/// are dropped, and unrecognized tags also fall back to plain text — an
+/// unknown tag risks being read literally, plain text never misbehaves.
 fn expressive_mapping(tag: &str) -> ExpressiveMapping {
     match tag {
         // Documented vocal bursts (with alias normalization to the
@@ -95,11 +97,11 @@ fn expressive_mapping(tag: &str) -> ExpressiveMapping {
         // Sound effects: the prompting guide says avoid these.
         "applause" | "boo" => ExpressiveMapping::Drop,
 
-        // Any other bracketed cue is treated as a best-effort vocal burst.
-        _ => {
-            let _ = tag;
-            ExpressiveMapping::PlainText
-        }
+        // Any other bracketed cue is spoken as plain text: Gemini's tag
+        // vocabulary is directed at vocal bursts, and an unrecognized
+        // tag risks being read literally — plain text is the safe
+        // degradation.
+        _ => ExpressiveMapping::PlainText,
     }
 }
 
@@ -170,12 +172,14 @@ impl GeminiFormatter {
         }
     }
 
-    /// Does this modifier key force CAPS on the modified text?
+    /// Does this modifier key force CAPS on the modified text? Only
+    /// moderate/strong do (CAPS is Gemini's only emphasis mechanism);
+    /// reduced emphasis has no Gemini form and passes through unchanged.
     fn modifier_caps_text(key: &str, value: &str) -> bool {
         key.eq_ignore_ascii_case("emphasis")
             && matches!(
                 value.trim().to_lowercase().as_str(),
-                "strong" | "moderate" | "reduced" | ""
+                "strong" | "moderate" | ""
             )
     }
 
@@ -312,22 +316,23 @@ impl GeminiFormatter {
     /// belong in the engine's `speech_metadata.style` channel — so they
     /// produce nothing here.
     fn section_prefix(&self, node: &AstNode) -> String {
-        let mut prefix = String::new();
+        // `#[whisper]` and `#[style:whisper]` are two spellings of the
+        // same request — emit at most one prefix tag.
+        let style_whisper = node
+            .attributes
+            .get("style")
+            .is_some_and(|s| matches!(s.as_str(), "whisper" | "whispering"));
+        let key_whisper = !style_whisper
+            && node
+                .attribute_keys
+                .iter()
+                .any(|k| Self::modifier_to_tag(k).is_some());
 
-        if let Some(style) = node.attributes.get("style") {
-            if style == "whisper" || style == "whispering" {
-                prefix.push_str("<whispers> ");
-            }
+        if style_whisper || key_whisper {
+            "<whispers> ".to_string()
+        } else {
+            String::new()
         }
-
-        for key in &node.attribute_keys {
-            if Self::modifier_to_tag(key).is_some() {
-                prefix.push_str("<whispers> ");
-                break;
-            }
-        }
-
-        prefix
     }
 }
 
@@ -394,7 +399,8 @@ mod tests {
     #[test]
     fn inline_emphasis_modifier_caps() {
         assert_eq!(to_gemini("(wow)[emphasis:\"strong\"]"), "WOW");
-        assert_eq!(to_gemini("(nice)[emphasis:\"reduced\"]"), "NICE");
+        // Reduced emphasis has no Gemini form — never CAPS.
+        assert_eq!(to_gemini("(nice)[emphasis:\"reduced\"]"), "nice");
     }
 
     #[test]
@@ -461,6 +467,11 @@ mod tests {
     #[test]
     fn sections_map_to_whisper_tag_only() {
         assert_eq!(to_gemini("#[whisper] secret stuff"), "<whispers>  secret stuff");
+        // The style spelling maps identically.
+        assert_eq!(
+            to_gemini("#[style:whisper] secret stuff"),
+            "<whispers>  secret stuff"
+        );
         // Styles are an engine-channel concern (speech_metadata.style).
         assert_eq!(to_gemini("#[excited] Hello world"), " Hello world");
         assert_eq!(to_gemini("#[sarcastic] nice"), " nice");

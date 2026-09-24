@@ -27,6 +27,7 @@ pub fn get_supported_ssml(platform: Platform) -> PlatformCapabilities {
         Platform::SamsungBixby => samsung_bixby_capabilities(),
         Platform::ElevenLabs => elevenlabs_capabilities(),
         Platform::ElevenLabsV3 => elevenlabs_v3_capabilities(),
+        Platform::Gemini => gemini_capabilities(),
         Platform::IbmWatson => ibm_watson_capabilities(),
     }
 }
@@ -520,6 +521,93 @@ fn elevenlabs_v3_capabilities() -> PlatformCapabilities {
              Dialogue)"
                 .into(),
             "lang (no equivalent)".into(),
+            "amazon:effect".into(),
+            "amazon:emotion".into(),
+            "amazon:domain".into(),
+            "mstts:express-as".into(),
+            "google:style".into(),
+        ],
+    }
+}
+
+fn gemini_capabilities() -> PlatformCapabilities {
+    // Gemini 3.8 TTS dialect: no SSML. The transcript is a verbatim script
+    // directed with angle-bracket vocal bursts/pauses, CAPS emphasis and
+    // plain-text disfluencies; sustained delivery lives in the turn-level
+    // speech_metadata.style field (engine channel), not inline.
+    PlatformCapabilities {
+        platform: "gemini".into(),
+        ssml_elements: vec![
+            SsmlCapability {
+                element: "<vocal burst>".into(),
+                description: "Angle-bracket vocal bursts (<laugh>, <sigh>, \
+                              <gasp>, <cough>, <chuckle>, <giggle>, <groan>, \
+                              <scream>, <yawn>, <throat-clearing>, ...); \
+                              English tags recommended even for non-English \
+                              transcripts"
+                    .into(),
+                attributes: vec![],
+                speech_markdown_syntax: vec!["[laugh]".into(), "[sigh]".into(), "[gasp]".into()],
+                example: "Wait... did you hear that? <sigh>".into(),
+            },
+            SsmlCapability {
+                element: "<short pause>/<long pause>".into(),
+                description: "Two pause steps only; sub-beat pauses become \
+                              ellipses (...). No exact durations"
+                    .into(),
+                attributes: vec![],
+                speech_markdown_syntax: vec![
+                    "[500ms]".into(),
+                    "[2s]".into(),
+                    "[break:strong]".into(),
+                ],
+                example: "Hold on, let me think... <short pause> Alright".into(),
+            },
+            SsmlCapability {
+                element: "CAPS emphasis".into(),
+                description: "Emphasis via capitalization (moderate and \
+                              strong collapse to one level)"
+                    .into(),
+                attributes: vec![],
+                speech_markdown_syntax: vec!["++word++".into(), "+word+".into()],
+                example: "This is a VERY important point!".into(),
+            },
+            SsmlCapability {
+                element: "<whispers>".into(),
+                description: "Whisper as an inline vocal burst".into(),
+                attributes: vec![],
+                speech_markdown_syntax: vec!["(text)[whisper]".into(), "#[whisper] text".into()],
+                example: "<whispers> it's a secret".into(),
+            },
+            SsmlCapability {
+                element: "plain-text disfluencies".into(),
+                description: "Backchannels ([mhm], [oh], [wow], ...) are \
+                              spoken as plain text — Gemini wants transcripts \
+                              written like real speech"
+                    .into(),
+                attributes: vec![],
+                speech_markdown_syntax: vec!["[mhm]".into(), "[oh]".into(), "[yeah]".into()],
+                example: "Oh uh yeah I think... hm, so that's interesting".into(),
+            },
+        ],
+        unsupported: vec![
+            "break (no SSML; two-tag pause approximation)".into(),
+            "prosody (rate/pitch/volume are turn-level speech_metadata.style, \
+             an engine channel — dropped inline)"
+                .into(),
+            "phoneme (no equivalent; Gemini handles pronunciation natively, \
+             the word itself is spoken)"
+                .into(),
+            "say-as (text normalization is native)".into(),
+            "sub (alias is spoken instead of the text)".into(),
+            "audio (no equivalent)".into(),
+            "mark (no word timestamps from the API)".into(),
+            "voice (switch via generationConfig.speech_config)".into(),
+            "lang (no equivalent)".into(),
+            "[applause]/[boo] and other sound effects (prompting guide says \
+             avoid non-vocal SFX)"
+                .into(),
+            "emphasis levels (moderate/strong both become CAPS)".into(),
             "amazon:effect".into(),
             "amazon:emotion".into(),
             "amazon:domain".into(),

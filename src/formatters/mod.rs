@@ -1,6 +1,7 @@
 pub mod base;
 pub mod elevenlabs;
 pub mod elevenlabs_v3;
+pub mod gemini;
 pub mod ssml;
 pub mod text;
 

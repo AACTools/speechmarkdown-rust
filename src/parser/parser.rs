@@ -65,6 +65,23 @@ const EXPRESSIVE_TAGS: &[&str] = &[
     "tsk-tsk",
     "uh-oh",
     "umph",
+    // Documented Gemini 3.8 vocal bursts (gemini.rs maps these to their
+    // <angle-bracket> forms; all other platforms emit them verbatim, so
+    // listing them here is output-neutral there).
+    "argh",
+    "breath",
+    "chuckle",
+    "chuckles",
+    "exhales",
+    "grr",
+    "growl",
+    "grunt",
+    "hiss",
+    "snicker",
+    "snort",
+    "sob",
+    "shout",
+    "shriek",
 ];
 
 impl SpeechMarkdownParser {

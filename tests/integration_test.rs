@@ -154,6 +154,26 @@ fn test_all_test_cases() {
                     }
                 }
 
+                // Test prompt-dialect output for Gemini 3.8 TTS (our own
+                // fixture set — angle-bracket vocal bursts/pauses, CAPS
+                // emphasis; extension kept as .ssml for corpus-runner
+                // consistency)
+                let gemini_file = test_dir.join(format!("{}.gemini.ssml", test_name));
+                if gemini_file.exists() {
+                    let expected = fs::read_to_string(&gemini_file).unwrap_or_else(|_| {
+                        panic!("Failed to read Gemini file: {:?}", gemini_file)
+                    });
+
+                    let result = SpeechMarkdownParser::to_ssml(&input, Platform::Gemini);
+                    if result.is_err() {
+                        all_checks_passed = false;
+                    } else if let Ok(actual) = result {
+                        if actual.trim() != normalize_line_endings(expected.trim()) {
+                            all_checks_passed = false;
+                        }
+                    }
+                }
+
                 all_checks_passed
             }
             Err(_e) => false,

@@ -200,9 +200,20 @@ fn handle_closing(name: &str, attrs: &[(String, String)], text_start: usize, res
         "phoneme" => {
             let alphabet = get_attr(attrs, "alphabet").unwrap_or_default();
             let ph = get_attr(attrs, "ph").unwrap_or_default();
+            let inner = extract_inner(text_start, result);
             if alphabet.eq_ignore_ascii_case("ipa") && !ph.is_empty() {
-                let inner = extract_inner(text_start, result);
-                result.push_str(&format!("({})/{}", inner, ph));
+                // Modifier form, NOT the bare `(word)/ipa` short form:
+                // the SMD parser does not round-trip its own short-form
+                // output (it passes through as literal text), while
+                // [ipa:"…"] parses everywhere — ElevenLabs dialects
+                // render the native "/IPA/" inline form and SSML
+                // platforms re-emit <phoneme alphabet="ipa">.
+                result.push_str(&format!("({})[ipa:\"{}\"]", inner, ph));
+            } else {
+                // Unsupported alphabet here (cmu-arpabet is an
+                // eleven_flash_v2-only XML tag with no SMD form): keep
+                // the word rather than dropping the content.
+                result.push_str(&inner);
             }
         }
         // Amazon's whispered effect (the local name quick-xml reports for
@@ -383,7 +394,35 @@ mod tests {
     fn test_phoneme_ipa() {
         let ssml = r#"<speak><phoneme alphabet="ipa" ph="ˈpi.kɑː.loʊ">piccolo</phoneme></speak>"#;
         let result = ssml_to_smd(ssml).unwrap();
-        assert_eq!(result, "(piccolo)/ˈpi.kɑː.loʊ");
+        assert_eq!(result, "(piccolo)[ipa:\"ˈpi.kɑː.loʊ\"]");
+    }
+
+    #[test]
+    fn test_phoneme_ipa_round_trips_to_every_dialect() {
+        // The reason the modifier form matters: SSML → SMD → platform.
+        use crate::SpeechMarkdownParser;
+        let ssml = r#"<speak>city of <phoneme alphabet="ipa" ph="ˌsænfrənˈsɪskoʊ">San Francisco</phoneme></speak>"#;
+        let smd = ssml_to_smd(ssml).unwrap();
+        // ElevenLabs v3/v4: native inline IPA (quotes added by the
+        // formatter — never by the transform).
+        let el = SpeechMarkdownParser::to_ssml(&smd, crate::Platform::ElevenLabsV3)
+            .unwrap();
+        assert_eq!(el, "city of \"/ˌsænfrənˈsɪskoʊ/\"");
+        // SSML platforms: the tag re-emits (round-trip).
+        let az = SpeechMarkdownParser::to_ssml(&smd, crate::Platform::MicrosoftAzure)
+            .unwrap();
+        assert!(
+            az.contains("<phoneme") && az.contains("alphabet=\"ipa\"") && az.contains("San Francisco"),
+            "{az}"
+        );
+    }
+
+    #[test]
+    fn test_phoneme_unsupported_alphabet_keeps_word() {
+        // cmu-arpabet has no SMD form — the word must survive, not vanish.
+        let ssml = r#"<speak><phoneme alphabet="cmu-arpabet" ph="M AE1 D IH0 S AH0 N">Madison</phoneme></speak>"#;
+        let result = ssml_to_smd(ssml).unwrap();
+        assert_eq!(result, "Madison");
     }
 
     #[test]
